@@ -22,7 +22,6 @@ rofi
 pcmanfm
 geany
 guake
-terminator
 
 # Core Utilities, Media & Viewers
 viewnior
@@ -30,7 +29,9 @@ atril
 vlc
 file-roller
 scrot
-xfce4-screenshooter
+galculator
+filezilla
+thunderbird
 gsimplecal
 # Modern Lightweight Wireless Stack (iwd + iwgtk)
 iwd
@@ -47,7 +48,6 @@ dconf-cli
 xsettingsd
 lxpolkit
 xfce4-notifyd
-openssh-server
 
 # Bluetooth
 bluez

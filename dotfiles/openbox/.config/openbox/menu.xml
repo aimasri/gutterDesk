@@ -4,7 +4,7 @@
     <!-- Quick Access Launchers -->
     <item label="Terminal">
       <action name="Execute">
-        <execute>terminator</execute>
+        <execute>guake-toggle</execute>
       </action>
     </item>
     <item label="File Manager">
@@ -46,17 +46,17 @@
 
     <separator label="gutter Suite"/>
 
-    <item label="Antigravity IDE">
+    <item label="Antigravity">
       <action name="Execute">
         <execute>antigravity</execute>
       </action>
     </item>
-    <item label="gutterDeck Dock">
+    <item label="gutterDeck">
       <action name="Execute">
         <execute>gutterdeck</execute>
       </action>
     </item>
-    <item label="gutterTab Drawer">
+    <item label="gutterTab">
       <action name="Execute">
         <execute>gutterTab</execute>
       </action>
@@ -69,19 +69,33 @@
 
     <separator label="Applications"/>
 
-    <!-- Accessories & Productivity -->
+    <!-- Viewers -->
+    <menu id="viewers-menu" label="Viewers">
+      <item label="Viewnior Image Viewer">
+        <action name="Execute">
+          <execute>viewnior</execute>
+        </action>
+      </item>
+      <item label="Atril Document Viewer">
+        <action name="Execute">
+          <execute>atril</execute>
+        </action>
+      </item>
+      <item label="VLC Media Player">
+        <action name="Execute">
+          <execute>vlc</execute>
+        </action>
+      </item>
+    </menu>
+
+    <!-- Accessories -->
     <menu id="accessories-menu" label="Accessories">
       <item label="Geany Text Editor">
         <action name="Execute">
           <execute>geany</execute>
         </action>
       </item>
-      <item label="Atril Document / PDF Viewer">
-        <action name="Execute">
-          <execute>atril</execute>
-        </action>
-      </item>
-      <item label="Archive Manager (File Roller)">
+      <item label="Archive Manager">
         <action name="Execute">
           <execute>file-roller</execute>
         </action>
@@ -91,11 +105,6 @@
           <execute>catfish</execute>
         </action>
       </item>
-      <item label="Task Manager (htop)">
-        <action name="Execute">
-          <execute>terminator -e htop</execute>
-        </action>
-      </item>
       <item label="Calendar">
         <action name="Execute">
           <execute>gsimplecal</execute>
@@ -103,19 +112,30 @@
       </item>
     </menu>
 
-    <!-- Multimedia & Graphics -->
-    <menu id="multimedia-menu" label="Media &amp; Graphics">
-      <item label="Viewnior Image Viewer">
+    <!-- Admin -->
+    <menu id="admin-menu" label="Admin">
+      <item label="Thunderbird">
         <action name="Execute">
-          <execute>viewnior</execute>
+          <execute>thunderbird</execute>
         </action>
       </item>
-      <item label="VLC Media Player">
+      <item label="FileZilla">
         <action name="Execute">
-          <execute>vlc</execute>
+          <execute>filezilla</execute>
         </action>
       </item>
-      <item label="PulseAudio Volume Control">
+      <item label="Calculator">
+        <action name="Execute">
+          <execute>galculator</execute>
+        </action>
+      </item>
+      <separator/>
+      <item label="Task Manager (htop)">
+        <action name="Execute">
+          <execute>x-terminal-emulator -e htop</execute>
+        </action>
+      </item>
+      <item label="Volume Control">
         <action name="Execute">
           <execute>pavucontrol</execute>
         </action>
@@ -137,12 +157,6 @@
       <item label="Full Screen (In 5s)...">
         <action name="Execute">
           <execute>scrot -d 5 '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</execute>
-        </action>
-      </item>
-      <separator/>
-      <item label="Xfce Screenshooter">
-        <action name="Execute">
-          <execute>xfce4-screenshooter</execute>
         </action>
       </item>
     </menu>

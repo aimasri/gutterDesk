@@ -355,6 +355,19 @@ elif [ -x /usr/local/bin/antigravity ]; then
     run_as_target ln -sf /usr/local/bin/antigravity "$TARGET_HOME/.local/bin/antigravity2"
 fi
 
+# Guake as default x-terminal-emulator
+sudo tee /usr/local/bin/x-terminal-emulator >/dev/null << 'EOF'
+#!/bin/bash
+if [ -n "$1" ]; then
+    guake "$@"
+else
+    guake-toggle
+fi
+EOF
+sudo chmod 755 /usr/local/bin/x-terminal-emulator
+run_as_target ln -sf /usr/local/bin/x-terminal-emulator "$TARGET_HOME/.local/bin/x-terminal-emulator"
+
+
 # Install /etc/profile.d/gutterdesk.sh for system-wide PATH configuration
 echo "Configuring system-wide environment PATH in /etc/profile.d/gutterdesk.sh..."
 sudo tee /etc/profile.d/gutterdesk.sh >/dev/null << 'EOF'
