@@ -119,16 +119,25 @@ if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
     sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf.d/99_gutterdesk.conf
 fi
 sudo systemctl enable lightdm 2>/dev/null || true
+sudo systemctl enable NetworkManager 2>/dev/null || true
+sudo systemctl enable bluetooth 2>/dev/null || true
+
+# Ensure NetworkManager manages all network devices
+if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
+    sudo sed -i 's/managed=false/managed=true/g' /etc/NetworkManager/NetworkManager.conf
+fi
 
 # 6. Deploy Dotfiles via GNU Stow
 echo "[5/8] Symlinking dotfiles into $TARGET_HOME..."
 cd "$SCRIPT_DIR/dotfiles"
 run_as_target mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin"
 
+STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal"
+
 if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
-    sudo -u "$TARGET_USER" -H stow -R -t "$TARGET_HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake
+    sudo -u "$TARGET_USER" -H stow -R -t "$TARGET_HOME" $STOW_PKGS
 else
-    stow -R -t "$TARGET_HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake
+    stow -R -t "$TARGET_HOME" $STOW_PKGS
 fi
 
 # Restore Guake terminal styling & palette

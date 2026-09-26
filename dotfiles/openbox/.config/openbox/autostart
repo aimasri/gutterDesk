@@ -5,6 +5,9 @@
 [ -f ~/.screenlayout/default.sh ] && ~/.screenlayout/default.sh
 xrdb -merge ~/.Xresources &
 
+## XSETTINGS daemon (propagates GTK & Papirus-Dark icon theme to tray applets)
+which xsettingsd >/dev/null 2>&1 && (xsettingsd &)
+
 ## LX PolicyKit
 lxpolkit &
 
@@ -28,10 +31,10 @@ if which guake >/dev/null 2>&1; then
 fi
 
 ## 6. Volume keys and systray icon
-which volumeicon >/dev/null 2>&1 && (volumeicon &) || (which mate-volume-control-status-icon >/dev/null 2>&1 && mate-volume-control-status-icon &)
+which volumeicon >/dev/null 2>&1 && (volumeicon &)
 
-## 7. Power management
-which mate-power-manager >/dev/null 2>&1 && mate-power-manager &
+## 7. Bluetooth manager applet
+which blueman-applet >/dev/null 2>&1 && (blueman-applet &)
 
 ## 8. Start PCManFM Daemon for instant file management
 pcmanfm -d &

@@ -1,0 +1,16 @@
+[Alsa]
+card=default
+channel=Master
+
+[StatusIcon]
+stepsize=5
+onclick=pavucontrol
+theme=White
+use_gtk_theme=true
+show_notification=false
+notification_type=0
+
+[Hotkeys]
+up_enabled=false
+down_enabled=false
+mute_enabled=false

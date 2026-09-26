@@ -32,15 +32,20 @@ file-roller
 scrot
 xfce4-screenshooter
 gsimplecal
+network-manager
 network-manager-gnome
 volumeicon-alsa
-mate-media
 pavucontrol
 catfish
 htop
 light-locker
 whiptail
 dconf-cli
+xsettingsd
+
+# Bluetooth
+bluez
+blueman
 
 # Fonts & Icons
 fonts-liberation
