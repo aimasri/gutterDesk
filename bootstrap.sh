@@ -48,7 +48,8 @@ sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/base.list" | tr '\n
 
 # 4. Deploy Wallpapers & Brand Icons (User & System-wide)
 echo "[3/8] Deploying wallpaper, branding & system themes..."
-run_as_target mkdir -p "$TARGET_HOME/.local/share/backgrounds" "$TARGET_HOME/.local/share/icons"
+sudo mkdir -p "$TARGET_HOME/.local/share/backgrounds" "$TARGET_HOME/.local/share/icons"
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local" 2>/dev/null || true
 run_as_target cp "$SCRIPT_DIR/wallpapers/"*.png "$TARGET_HOME/.local/share/backgrounds/" 2>/dev/null || true
 run_as_target cp -r "$SCRIPT_DIR/assets/icons/"* "$TARGET_HOME/.local/share/icons/" 2>/dev/null || true
 
@@ -147,24 +148,58 @@ which rfkill >/dev/null 2>&1 && sudo rfkill unblock wifi 2>/dev/null || true
 # Add target user to netdev group for unprivileged network control
 sudo usermod -a -G netdev "$TARGET_USER" 2>/dev/null || true
 
-# Migrate any existing netinst Wi-Fi credentials into iwd profile
+# Migrate existing netinst Wi-Fi credentials into iwd profile
+echo "Scanning for netinst Wi-Fi credentials to migrate..."
+python3 - << 'PYEOF'
+import os, re
+
+files = ['/etc/network/interfaces', '/etc/network/interfaces.bak']
+ssid, psk = None, None
+
+for path in files:
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+                # Matches wpa-ssid even if commented out (# wpa-ssid "MySSID")
+                m_ssid = re.search(r'wpa-ssid\s+["\']?([^"\'\r\n]+)', content)
+                # Matches wpa-psk or wpa-passphrase even if commented out
+                m_psk = re.search(r'wpa-(?:psk|passphrase)\s+["\']?([^"\'\r\n]+)', content)
+                if m_ssid and m_psk:
+                    s = m_ssid.group(1).strip().strip('"').strip("'")
+                    p = m_psk.group(1).strip().strip('"').strip("'")
+                    if s and p:
+                        ssid, psk = s, p
+                        break
+        except Exception:
+            pass
+
+if ssid and psk:
+    os.makedirs('/var/lib/iwd', exist_ok=True)
+    is_hex = len(psk) == 64 and all(c in '0123456789abcdefABCDEF' for c in psk)
+    sec_key = 'PreSharedKey' if is_hex else 'Passphrase'
+    target_file = f'/var/lib/iwd/{ssid}.psk'
+    with open(target_file, 'w', encoding='utf-8') as f:
+        f.write(f'[Security]\n{sec_key}={psk}\n')
+    os.chmod(target_file, 0o600)
+    print(f"✓ Migrated Wi-Fi credentials for '{ssid}' ({sec_key}) into {target_file}")
+else:
+    print("Notice: No saved Wi-Fi credentials found in /etc/network/interfaces.")
+PYEOF
+
+# Comment out only wireless interfaces in /etc/network/interfaces so iwd has exclusive control
 if [ -f /etc/network/interfaces ]; then
-    WIFI_SSID=$(grep -E '^[[:space:]]*wpa-ssid[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
-    WIFI_PSK=$(grep -E '^[[:space:]]*wpa-psk[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
-
-    if [ -n "$WIFI_SSID" ] && [ -n "$WIFI_PSK" ]; then
-        echo "Migrating netinst Wi-Fi profile for '$WIFI_SSID' to iwd..."
-        cat << EOF | sudo tee "/var/lib/iwd/${WIFI_SSID}.psk" >/dev/null
-[Security]
-Passphrase=${WIFI_PSK}
-EOF
-        sudo chmod 600 "/var/lib/iwd/${WIFI_SSID}.psk"
+    if [ ! -f /etc/network/interfaces.bak ]; then
+        sudo cp /etc/network/interfaces /etc/network/interfaces.bak
     fi
-
-    sudo cp /etc/network/interfaces /etc/network/interfaces.bak
-    sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp|enp|eth).*/# &/g' /etc/network/interfaces
+    sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp).*/# &/g' /etc/network/interfaces
     sudo sed -i -E 's/^[[:space:]]*wpa-.*/# &/g' /etc/network/interfaces
 fi
+
+# Stop and disable bloated/conflicting networking services
+sudo systemctl stop NetworkManager wpa_supplicant 2>/dev/null || true
+sudo systemctl disable NetworkManager wpa_supplicant 2>/dev/null || true
+sudo systemctl stop networking 2>/dev/null || true
 
 # Enable and start iwd
 sudo systemctl unmask iwd 2>/dev/null || true
@@ -174,19 +209,34 @@ sudo systemctl restart iwd 2>/dev/null || true
 # 6. Deploy Dotfiles via GNU Stow
 echo "[5/8] Symlinking dotfiles into $TARGET_HOME..."
 cd "$SCRIPT_DIR/dotfiles"
-run_as_target mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin"
+STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal iwgtk"
+
+# Ensure target home base directories exist with proper user ownership
+sudo mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes"
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" 2>/dev/null || true
 
 # Clean up pre-existing unmanaged conflicting files that prevent stow from linking
-for conf in ".config/volumeicon" ".config/gsimplecal" ".config/gtk-3.0/settings.ini" ".gtkrc-2.0" ".config/xsettingsd" ".config/iwgtk.conf"; do
-    target="$TARGET_HOME/$conf"
-    if [ -e "$target" ] && [ ! -L "$target" ]; then
-        echo "Backing up pre-existing unmanaged $conf to $conf.bak..."
-        run_as_target rm -rf "$target.bak"
-        run_as_target mv "$target" "$target.bak"
+echo "Resolving potential dotfile conflicts before stowing..."
+for pkg in $STOW_PKGS; do
+    if [ -d "$SCRIPT_DIR/dotfiles/$pkg" ]; then
+        (
+            cd "$SCRIPT_DIR/dotfiles/$pkg"
+            find . -type f -o -type l | while read -r f; do
+                rel="${f#./}"
+                target="$TARGET_HOME/$rel"
+                if [ -e "$target" ] && [ ! -L "$target" ]; then
+                    echo "Backing up pre-existing unmanaged $rel to $rel.bak..."
+                    sudo rm -rf "$target.bak"
+                    sudo mv "$target" "$target.bak"
+                    sudo chown -R "$TARGET_USER:$TARGET_USER" "$target.bak" 2>/dev/null || true
+                fi
+            done
+        )
     fi
 done
 
-STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal iwgtk"
+# Ensure all directories under ~/.config and ~/.local are owned by the target user prior to stowing
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" 2>/dev/null || true
 
 if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
     sudo -u "$TARGET_USER" -H stow -R -t "$TARGET_HOME" $STOW_PKGS
@@ -210,8 +260,8 @@ run_as_target xdg-mime default pcmanfm.desktop inode/directory 2>/dev/null || tr
 
 # 8. Build gutterDeck and gutterTab
 echo "[7/8] Building and installing desktop utilities..."
-run_as_target mkdir -p "$TARGET_HOME/projects" "$TARGET_HOME/.local/bin"
-sudo mkdir -p /usr/local/bin
+sudo mkdir -p "$TARGET_HOME/projects" "$TARGET_HOME/.local/bin" /usr/local/bin
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/projects" "$TARGET_HOME/.local" 2>/dev/null || true
 
 build_tool() {
     local name="$1"
