@@ -9,14 +9,14 @@ sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/banyan-engine.list"
 mkdir -p "$HOME/projects" "$HOME/.config/gutterdesk"
 [ -f "$HOME/.config/gutterdesk/banyan.conf" ] && source "$HOME/.config/gutterdesk/banyan.conf"
 
+BANYAN_REPO_URL="${BANYAN_REPO_URL:-git@github.com:aimasri/Banyan.git}"
+
 if [ ! -d "$HOME/projects/Banyan/.git" ]; then
-    if [ -n "$BANYAN_REPO_URL" ]; then
-        echo "Cloning Banyan repository from $BANYAN_REPO_URL..."
-        git clone "$BANYAN_REPO_URL" "$HOME/projects/Banyan"
-    else
-        echo "Notice: Banyan repository not found at $HOME/projects/Banyan."
-        echo "Set BANYAN_REPO_URL or specify in ~/.config/gutterdesk/banyan.conf to auto-clone."
-        exit 0
+    echo "Cloning Banyan repository from $BANYAN_REPO_URL..."
+    if ! git clone "$BANYAN_REPO_URL" "$HOME/projects/Banyan"; then
+        echo "Error: Failed to clone Banyan repository."
+        echo "Ensure your GitHub SSH key (~/.ssh/id_ed25519) is installed on this machine."
+        exit 1
     fi
 else
     echo "Banyan repository already present at $HOME/projects/Banyan"
