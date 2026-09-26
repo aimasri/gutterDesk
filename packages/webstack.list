@@ -2,4 +2,3 @@ apache2
 postgresql
 postgresql-contrib
 redis-server
-dnsmasq
