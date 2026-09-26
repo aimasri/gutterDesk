@@ -1,97 +1,155 @@
-# gutterDesk Deployment Roadmap & Quickstart Guide
+# gutterDesk Complete Installation & Deployment Guide
 
-This guide details how to install and deploy **gutterDesk** on any target laptop, desktop, or workstation.
-
----
-
-## Step 1: Base Debian 13 Net-Install (USB)
-1. Download the minimal **Debian 13 (Trixie) Net-inst ISO**:
-   * Choose standard 64-bit PC (`amd64`).
-   * Flash to a USB drive using `dd`, Ventoy, or Rufus.
-2. Boot the target machine from the USB drive.
-3. During Debian installation:
-   * Choose your hostname (e.g. `gutterdesk-laptop`, `workhorse`).
-   * **Software Selection screen:** Uncheck all desktop environments (GNOME, XFCE, etc.). Check **only**:
-     * `SSH server`
-     * `Standard system utilities`
-4. Complete the installation and reboot into your minimal TTY terminal prompt.
+This document is the definitive end-to-end guide for installing and configuring **gutterDesk** on any target laptop, desktop, or workstation.
 
 ---
 
-## Step 2: Bootstrap the Universal Base
-Log into your new machine at the TTY prompt and run:
+## 1. Pre-Installation: BIOS / UEFI Firmware Setup
+
+Before booting the USB installer on a target machine (especially modern laptops like ASUS, Lenovo, HP, Dell):
+
+1. **Enter BIOS Setup:**
+   * **ASUS:** Tap `F2` or `Delete` upon power on (or `Esc` for boot menu).
+   * **Lenovo:** Tap `F12` or `Fn + F2` (or press the side Novo button).
+   * **Dell:** Tap `F12`.
+   * **HP:** Tap `Esc` repeatedly, then press `F10` for BIOS (`F9` for Boot Menu).
+2. **Key Firmware Settings:**
+   * **Secure Boot:** Set to **`Disabled`** (or in ASUS: *Security* -> *Key Management* -> *Delete Platform Key (PK)*).
+   * **Fast Boot:** Set to **`Disabled`**.
+   * **Boot Mode:** Set to **`UEFI`** (never Legacy/CSM).
+   * **Storage Controller (Intel Laptops):** If Intel VMD is present under *Advanced* -> *VMD Setup Menu*, set **Enable VMD Controller** to **`Disabled`** (native AHCI).
+3. **Save and Exit:** Press `F10`.
+
+---
+
+## 2. Base Debian 13 Net-Install (USB)
+
+### Flash the USB Drive
+* Download the minimal **Debian 13 (Trixie) Net-inst ISO** (`amd64`).
+* Flash with Ventoy (recommended) or `dd`:
+  ```bash
+  sudo dd if=debian-13.x-amd64-netinst.iso of=/dev/sdX bs=4M status=progress conv=fsync
+  ```
+
+### Installer Walkthrough
+1. **Boot:** Press your machine's boot menu key (ASUS: `F8` or `Esc`; Lenovo/Dell: `F12`; HP: `F9`) and select the **UEFI USB Drive**.
+2. **Network & Domain:**
+   * Hostname: choose your machine name (e.g. `aim-stream`, `gutterdesk-laptop`).
+   * **Domain Name:** **Leave completely blank** (prevents DNS conflicts on roaming Wi-Fi).
+3. **User Account:**
+   * Enter your name and pick your standard username (e.g. `ahmed`).
+4. **Partitioning:**
+   * Select: **"Guided - use entire disk"**.
+   * Select: **"All files in one partition"** (pools root `/`, Docker, Postgres, and `/home` dynamically into one storage pool).
+   * Select: **"Finish partitioning and write changes to disk"** -> **Yes**.
+5. **Software Selection (`tasksel`):**
+   * `[ ] Debian desktop environment` **<-- UNCHECK**
+   * `[ ] ... (all other desktops GNOME, XFCE, KDE)` **<-- UNCHECK**
+   * `[ ] choose a debian blend` **<-- UNCHECK**
+   * `[*] SSH server` **<-- CHECK**
+   * `[*] standard system utilities` **<-- CHECK**
+6. **GRUB Bootloader:**
+   * If prompted: *"Force GRUB installation to the EFI removable media path?"* -> Select **`<Yes>`**.
+7. **Reboot:** When it displays *"Installation complete"*, unplug the USB and reboot.
+
+---
+
+## 3. Post-Boot: Sudo Configuration & Base Bootstrap
+
+Once rebooted into the text TTY console (`login:`):
+
+### Step A: Configure Sudo Permissions
+Debian minimal does not add normal users to `sudoers` if a root password was created. Run this one-time fix:
 
 ```bash
-# 1. Install git and sudo if not already present
 su -
-apt update && apt install -y git sudo
-usermod -aG sudo <your-username>
-exit
+# (Enter your root password)
 
-# 2. Log back in as your user and clone gutterDesk
+apt install -y sudo git
+echo "ahmed ALL=(ALL:ALL) ALL" > /etc/sudoers.d/ahmed
+chmod 0440 /etc/sudoers.d/ahmed
+exit
+```
+
+### Step B: Run Universal Base Bootstrap
+Log in as your normal user (`ahmed`) and run:
+
+```bash
 git clone https://github.com/aimasri/gutterDesk.git ~/projects/gutterDesk
 cd ~/projects/gutterDesk
-
-# 3. Run the Universal Base bootstrap
 ./bootstrap.sh
 ```
 
-### What `bootstrap.sh` does automatically:
-1. Adds bundled GPG keys and APT repositories for Google Chrome and Antigravity IDE.
-2. Installs all packages in `packages/base.list` (Openbox, Tint2, PCManFM, Guake, Scrot, Viewnior, Atril, build tools).
-3. Symlinks your **Midnight Forest** dotfiles into `$HOME` via GNU Stow.
-4. Deploys landscape, portrait, and branding wallpapers to `~/.local/share/backgrounds/`.
-5. Clones and compiles `gutterDeck` and `gutterTab` from GitHub.
+#### What `bootstrap.sh` does automatically:
+1. Injects official GPG keys and APT repos for Google Chrome and Antigravity IDE.
+2. Installs Universal Base packages (X11, Openbox, Tint2, PCManFM, Guake, Scrot, Viewnior, Atril, LightDM, build toolchain).
+3. Deploys custom **Midnight Forest** dotfiles into `$HOME` via GNU Stow.
+4. Deploys multi-monitor wallpapers and brand icons.
+5. Clones and compiles **`gutterDeck`** and **`gutterTab`** from GitHub into `~/.local/bin/`.
 6. Sets up LightDM login manager to boot directly into Openbox.
+
+Once completed, reboot:
+```bash
+sudo reboot
+```
 
 ---
 
-## Step 3: Run the Modular Checkbox Installer (`install.sh`)
-Once logged into your new graphical desktop, open Guake (`F12`) or a terminal and run:
+## 4. Modular Checkbox Installer (`install.sh`)
+
+Once logged into your graphical desktop, open a terminal or press `F12` (Guake) and run:
 
 ```bash
 cd ~/projects/gutterDesk
 ./install.sh
 ```
 
-A clean checkbox menu will appear on your screen:
-* **[ ] 1. Creative Suite** (GIMP, Krita, Inkscape, Blender, Kdenlive, etc.)
+An interactive checkbox menu lets you provision specialized environments on demand:
+* **[ ] 1. Creative Suite** (GIMP, Krita, Inkscape, Blender, Kdenlive)
 * **[ ] 2. Banyan Trading Engine** (Wine64, Python venv, MT5 daemon)
 * **[ ] 3. Banyan Trading Dashboard** (C++ monitoring UI)
 * **[ ] 4. Jellyfin & Tailscale** (Media streaming + remote mesh node)
-* **[ ] 5. Web Development Stack** (Apache2, Postgres, Redis, vhosts)
+* **[ ] 5. Web Development Stack** (Apache2, Postgres, Redis, dnsmasq, vhosts)
 * **[ ] 6. Torrent Machine** (Transmission-gtk & UFW)
 
-Simply press `Space` to check the modules you want for this machine, press `Enter`, and the installer will provision the selected software and repositories.
+Press `Space` to select modules and `Enter` to install.
 
 ---
 
-## Step 4: Restoring Private User Profiles (Optional)
-If you have backed up your private profiles and personal notes using `gutterdesk-private-backup`:
+## 5. Restoring Private Profiles & Identity Keys
+
+To restore personal notes, dock profiles, and multi-account SSH keys from your private backup archive:
 
 ```bash
-# Insert your backup USB drive or copy from Google Drive
-cd /path/to/gutterdesk-private-backup
+# 1. Extract archive to ~/projects/
+tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/projects/
+
+# 2. Run the automated restore script
+cd ~/projects/gutterdesk-private-backup
 ./restore-private-profile.sh
 ```
 
-This restores personal `gutterDeck` profiles, `gutterTab` notes databases, SSH multi-account configurations, and personal wallpapers with zero manual intervention.
+### What is Restored:
+* **SSH Keys:** Restores `id_ed25519`, `github_fussybaby`, `github_urbansugar`, `id_ed25519_vps`, and sets `600`/`700` permissions.
+* **gutterDeck:** Restores all personal dock launcher profiles (`default`, `creative`, `entertainment`, etc.).
+* **gutterTab:** Restores SQLite `notes.db` with personal notes, bookmarks, and drawer settings.
+* **Wallpapers:** Restores personal wallpaper library to `~/images/wallpapers/`.
 
 ---
 
-## Step 5: Maintenance & Network-Wide Dotfile Updates
-Because all configuration files (`~/.config/openbox`, `~/.config/tint2`, `~/.config/pcmanfm`) are **symlinks** pointing back to `~/projects/gutterDesk/dotfiles/`:
+## 6. Multi-Machine Maintenance & Dotfile Synchronization
 
-1. Any changes you make to keybindings, tint2 colors, or menus are tracked directly inside git.
-2. Commit and push from any machine:
-   ```bash
-   cd ~/projects/gutterDesk
-   git commit -am "Updated keybinding" && git push
-   ```
-3. On any other machine on your network:
-   ```bash
-   cd ~/projects/gutterDesk && git pull
-   openbox --reconfigure
-   pkill -SIGUSR1 tint2
-   ```
-   Both Openbox and Tint2 will update instantaneously across all screens simultaneously.
+All configurations (`~/.config/openbox`, `~/.config/tint2`, `~/.config/pcmanfm`) are live symlinks to `~/projects/gutterDesk/dotfiles/`.
+
+* **To push a configuration change from any machine:**
+  ```bash
+  cd ~/projects/gutterDesk
+  git commit -am "Updated keybindings or panel" && git push
+  ```
+
+* **To apply updates on another machine on your network:**
+  ```bash
+  cd ~/projects/gutterDesk && git pull
+  openbox --reconfigure
+  pkill -SIGUSR1 tint2
+  ```
