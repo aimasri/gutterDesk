@@ -21,24 +21,23 @@ which picom >/dev/null 2>&1 && (picom -b &) || (which cbpp-compositor >/dev/null
 ## 4. Start Network Manager applet
 nm-applet &
 
-## 5. Volume keys daemon
-which mate-volume-control-status-icon >/dev/null 2>&1 && mate-volume-control-status-icon &
+## 5. Dropdown terminal daemon (guake)
+which guake >/dev/null 2>&1 && (guake &)
 
-## 6. Power management
+## 6. Volume keys and systray icon
+which volumeicon >/dev/null 2>&1 && (volumeicon &) || (which mate-volume-control-status-icon >/dev/null 2>&1 && mate-volume-control-status-icon &)
+
+## 7. Power management
 which mate-power-manager >/dev/null 2>&1 && mate-power-manager &
 
-## 7. Start PCManFM Daemon for instant file management
+## 8. Start PCManFM Daemon for instant file management
 pcmanfm -d &
 
-## 8. Screen lock daemon
+## 9. Screen lock daemon
 xscreensaver -no-splash &
 
-## 9. Clipboard manager
+## 10. Clipboard manager
 which parcellite >/dev/null 2>&1 && (sleep 2s && parcellite) &
-
-## 10. Start custom productivity utilities (gutterDeck and gutterTab)
-(sleep 2s && [ -x ~/.local/bin/gutterdeck ] && ~/.local/bin/gutterdeck) &
-(sleep 2s && [ -x ~/.local/bin/gutterTab ] && ~/.local/bin/gutterTab) &
 
 ## 11. Banyan Desktop System Tray Daemon (if installed)
 [ -f ~/.config/systemd/user/banyan-desktop.service ] && (sleep 3s && systemctl --user start banyan-desktop.service) &

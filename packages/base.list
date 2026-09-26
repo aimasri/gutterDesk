@@ -13,8 +13,9 @@ nitrogen
 gmrun
 rofi
 
-# File Manager & Terminal
+# File Manager, Editor & Terminal
 pcmanfm
+geany
 guake
 terminator
 
@@ -27,6 +28,7 @@ scrot
 xfce4-screenshooter
 gsimplecal
 network-manager-gnome
+volumeicon-alsa
 mate-media
 pavucontrol
 catfish
@@ -34,10 +36,11 @@ htop
 xscreensaver
 whiptail
 
-# Fonts
+# Fonts & Icons
 fonts-liberation
 fonts-dejavu
 fonts-font-awesome
+papirus-icon-theme
 
 # Compilation Toolchain (for gutterDeck & gutterTab)
 build-essential

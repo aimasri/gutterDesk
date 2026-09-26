@@ -2,27 +2,21 @@
     "decks": [
         {
             "color": "#8038bdf8",
-            "command": "google-chrome --new-window",
+            "command": "chromium --no-first-run --no-default-browser-check",
             "id": "deck_browser",
             "name": "Browser"
         },
         {
             "color": "#80818cf8",
-            "command": "pcmanfm ~",
+            "command": "pcmanfm",
             "id": "deck_files",
             "name": "Files"
         },
         {
             "color": "#80a855f7",
-            "command": "guake-toggle",
-            "id": "deck_term",
-            "name": "Terminal"
-        },
-        {
-            "color": "#80ec4899",
-            "command": "antigravity2",
-            "id": "deck_ide",
-            "name": "Antigravity"
+            "command": "geany",
+            "id": "deck_editor",
+            "name": "Editor"
         }
     ],
     "settings": {
