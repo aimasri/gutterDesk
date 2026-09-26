@@ -22,7 +22,7 @@ which lxpolkit >/dev/null 2>&1 && (lxpolkit &)
 ([ -x ~/.local/bin/auto-wallpaper.sh ] && ~/.local/bin/auto-wallpaper.sh || (nitrogen --restore &)) &
 
 ## 2. Start compositor (picom)
-which picom >/dev/null 2>&1 && (picom -b &) || (which cbpp-compositor >/dev/null 2>&1 && cbpp-compositor --start &)
+which picom >/dev/null 2>&1 && (picom -b &)
 
 ## 3. Start tint2 panel (delayed 1s for compositing)
 (sleep 1s && tint2) &

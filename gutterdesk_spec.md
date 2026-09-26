@@ -24,6 +24,9 @@
 * **Productivity Suite:** 
   * `gutterDeck`: Edge-anchored compositor accordion application dock
   * `gutterTab`: Pull-out note drawer and workspace prompt daemon
+* **Wireless & Network:** Intel Wireless Daemon (`iwd`) + `iwgtk` + native zero-overhead Tint2 network executor (`tint2-network.sh`)
+* **Remote Access:** OpenSSH Server (`openssh-server`, systemd enabled by default)
+* **Configuration Deployment:** Direct atomic symlinks (`ln -sf`), eliminating configuration drift with zero package overhead
 * **Wallpaper Engine:** Dynamic orientation detection via `auto-wallpaper.sh` (applies landscape or portrait wallpapers automatically per connected monitor)
 
 ---

@@ -77,18 +77,22 @@ Log in as your normal user (`ahmed`) and run:
 ```bash
 git clone https://github.com/aimasri/gutterDesk.git ~/projects/gutterDesk
 cd ~/projects/gutterDesk
-./bootstrap.sh
+sudo ./bootstrap.sh
 ```
 
 #### What `bootstrap.sh` does automatically:
 1. Injects official GPG keys and APT repos for Google Chrome and Antigravity IDE.
-2. Installs Universal Base packages (X11, Openbox, Tint2, PCManFM, Geany, Guake, Scrot, Viewnior, Atril, LightDM, Plymouth, build toolchain).
-3. Deploys custom **Midnight Forest** and **gutterDesk** dotfiles into `$HOME` via GNU Stow.
-4. Deploys multi-monitor wallpapers, brand icons, and system-wide GTK themes.
-5. Installs and activates the **gutterDesk Plymouth boot splash** theme (centered vector emblem + rotating neon spinner on `#080c0e` obsidian).
-6. Configures GRUB bootloader parameters (`quiet splash`) and rebuilds initramfs.
-7. Configures the matching **gutterDesk LightDM GTK greeter** login screen (centered obsidian login card, Papirus-Dark icons, custom GTK styling).
-8. Clones and compiles **`gutterDeck`** and **`gutterTab`** from GitHub into `~/.local/bin/`.
+2. Installs Universal Base packages (X11, Openbox, Tint2, PCManFM, Geany, Guake, Scrot, Viewnior, Atril, LightDM, Plymouth, openssh-server, build toolchain).
+3. Migrates netinst Wi-Fi credentials into `iwd` profiles (`/var/lib/iwd/`), enables `iwd`, and disables bloated legacy network services.
+4. Deploys custom **Midnight Forest** dotfiles into `$HOME` via direct atomic symlinks (`ln -sf`).
+5. Deploys multi-monitor wallpapers, brand icons, and system-wide GTK themes.
+6. Installs and activates the **gutterDesk Plymouth boot splash** theme (centered vector emblem + rotating neon spinner on `#080c0e` obsidian).
+7. Configures GRUB bootloader parameters (`quiet splash`) and rebuilds initramfs.
+8. Configures the matching **gutterDesk LightDM GTK greeter** login screen (centered obsidian login card, Papirus-Dark icons, custom GTK styling).
+9. Configures `light-locker` with `--lock-on-suspend --lock-on-lid --no-late-locking` for unified login and lock screens without `xscreensaver`.
+10. Clones and compiles **`gutterDeck`** and **`gutterTab`** from GitHub into `/usr/local/bin/` and `~/.local/bin/`.
+11. Configures the native Tint2 network executor (`~/.local/bin/tint2-network.sh`) with dynamic Papirus Wi-Fi signal icons.
+12. Heals `$HOME` permissions recursively to prevent `.Xauthority` or config permission locks.
 
 Once completed, reboot:
 ```bash

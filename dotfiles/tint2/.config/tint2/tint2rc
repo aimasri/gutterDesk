@@ -118,13 +118,13 @@ launcher_padding = 8 4 4
 launcher_background_id = 0
 launcher_icon_size = 24
 # Specify icon theme names with launcher_icon_theme. 
-# if you have an XSETTINGS manager running (like xfsettingsd), tint2 will follow your current theme.
-launcher_icon_theme = gnome-colors-statler
+launcher_icon_theme = Papirus-Dark
 # Each launcher_item_app must be a full path to a .desktop file
 launcher_item_app = /usr/share/applications/terminator.desktop
 launcher_item_app = /usr/share/applications/pcmanfm.desktop
-launcher_item_app = /usr/share/applications/gedit.desktop
-launcher_item_app = /usr/share/applications/iceweasel.desktop
+launcher_item_app = /usr/share/applications/geany.desktop
+launcher_item_app = /usr/share/applications/google-chrome.desktop
+launcher_item_app = /usr/share/applications/antigravity.desktop
 
 # System Tray
 systray = 1

@@ -424,12 +424,8 @@
       </action>
     </keybind>
     <keybind key="W-x">
-      <action name="Execute">
-        <startupnotify>
-          <enabled>true</enabled>
-          <name>Logout</name>
-        </startupnotify>
-        <command>cbpp-exit</command>
+      <action name="ShowMenu">
+        <menu>session-power-menu</menu>
       </action>
     </keybind>
     <keybind key="W-Tab">
