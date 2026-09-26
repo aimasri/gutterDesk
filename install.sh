@@ -26,7 +26,7 @@ if command -v whiptail >/dev/null; then
         "4" "Jellyfin Media Server & Tailscale Mesh Node" OFF \
         "5" "Web Development Stack (Apache2, Postgres, Redis, repos)" OFF \
         "6" "Torrent Machine (Transmission-gtk, UFW)" OFF \
-        3>&1 1>&2 2>&3)
+        3>&1 1>&2 2>&3) || true
 else
     # Simple CLI fallback
     echo "Select modules to install (comma-separated, e.g. 1,4,5):"
@@ -37,6 +37,13 @@ else
     echo "  5) Web Development Stack"
     echo "  6) Torrent Machine"
     read -p "Selection: " CHOICES
+    CHOICES=$(echo "$CHOICES" | tr ',' ' ')
+fi
+
+# Exit cleanly if cancelled or nothing selected
+if [ -z "$(echo "$CHOICES" | tr -d '[:space:]\"')" ]; then
+    echo "No modules selected. Exiting."
+    exit 0
 fi
 
 echo ""
