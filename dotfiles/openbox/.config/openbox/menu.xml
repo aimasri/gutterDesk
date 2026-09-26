@@ -233,7 +233,7 @@
         </action>
       </item>
       <separator/>
-      <item label="Task Manager (htop)">
+      <item label="Task Manager">
         <action name="Execute">
           <execute>x-terminal-emulator -e htop</execute>
         </action>
@@ -247,7 +247,7 @@
 
     <!-- 5. Network -->
     <menu id="network-menu" label="Network">
-      <item label="Wi-Fi Settings (iwgtk)">
+      <item label="Wi-Fi Settings">
         <action name="Execute">
           <execute>iwgtk</execute>
         </action>
@@ -268,12 +268,12 @@
 
     <!-- Settings -->
     <menu id="settings-menu" label="Settings">
-      <item label="Openbox Preferences (obconf)">
+      <item label="Openbox Preferences">
         <action name="Execute">
           <execute>obconf</execute>
         </action>
       </item>
-      <item label="Wallpaper Selection (Nitrogen)">
+      <item label="Wallpaper Selection">
         <action name="Execute">
           <execute>nitrogen</execute>
         </action>
