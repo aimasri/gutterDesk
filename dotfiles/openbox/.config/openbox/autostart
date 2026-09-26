@@ -12,8 +12,8 @@ which xsettingsd >/dev/null 2>&1 && (xsettingsd &)
 lxpolkit &
 
 ## Sequential Desktop Group Start:
-## 1. Auto-detect orientation and apply matching wallpapers
-[ -x ~/.local/bin/auto-wallpaper.sh ] && ~/.local/bin/auto-wallpaper.sh || (nitrogen --restore &)
+## 1. Auto-detect orientation and apply matching wallpapers (backgrounded)
+([ -x ~/.local/bin/auto-wallpaper.sh ] && ~/.local/bin/auto-wallpaper.sh || (nitrogen --restore &)) &
 
 ## 2. Start compositor (picom)
 which picom >/dev/null 2>&1 && (picom -b &) || (which cbpp-compositor >/dev/null 2>&1 && cbpp-compositor --start &)
@@ -38,9 +38,6 @@ which blueman-applet >/dev/null 2>&1 && (blueman-applet &)
 
 ## 8. Start PCManFM Daemon for instant file management
 pcmanfm -d &
-
-## 9. Screen lock daemon (light-locker delegates lock screen to LightDM)
-which light-locker >/dev/null 2>&1 && (light-locker --lock-on-suspend --lock-on-lid &)
 
 ## Native DPMS power management (clean fade-to-black after 10m idle)
 xset s 600 600 &
