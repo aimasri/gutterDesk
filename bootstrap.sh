@@ -209,6 +209,16 @@ sudo systemctl unmask iwd 2>/dev/null || true
 sudo systemctl enable iwd 2>/dev/null || true
 sudo systemctl restart iwd 2>/dev/null || true
 
+# Wait briefly for iwd to associate and acquire DHCP lease
+echo "Awaiting wireless network association..."
+for i in $(seq 1 12); do
+    if ping -c 1 -W 1 1.1.1.1 >/dev/null 2>&1; then
+        echo "✓ Network connection established."
+        break
+    fi
+    sleep 1
+done
+
 # 6. Deploy Dotfiles via Direct Atomic Symlinking
 echo "[5/8] Deploying dotfiles into $TARGET_HOME..."
 DOTFILES_DIR="$SCRIPT_DIR/dotfiles"
@@ -358,6 +368,7 @@ if [ -n "$PATH" ]; then
 else
     export PATH="/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin"
 fi
+export GTK_USE_PORTAL=0
 EOF
 sudo chmod 644 /etc/profile.d/gutterdesk.sh
 

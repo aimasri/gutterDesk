@@ -4,5 +4,7 @@
         "gemini-pro",
         "claude-gpt"
     ],
-    "git.autofetch": true
+    "git.autofetch": true,
+    "window.dialogStyle": "custom",
+    "files.simpleDialog.enable": true
 }

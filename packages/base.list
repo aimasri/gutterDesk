@@ -41,10 +41,13 @@ volumeicon-alsa
 pavucontrol
 catfish
 htop
-light-locker
+xdg-desktop-portal
+xdg-desktop-portal-gtk
 whiptail
 dconf-cli
 xsettingsd
+lxpolkit
+xfce4-notifyd
 
 # Bluetooth
 bluez
@@ -55,6 +58,7 @@ fonts-liberation
 fonts-dejavu
 fonts-font-awesome
 papirus-icon-theme
+dmz-cursor-theme
 
 # Compilation Toolchain (for gutterDeck & gutterTab)
 build-essential
