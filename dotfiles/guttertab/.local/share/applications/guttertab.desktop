@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=gutterTab
+GenericName=Edge Gutter Workspace Tabs & Notes
+Comment=Sleek edge tab notes and workspace manager
+Exec=gutterTab
+Icon=guttertab
+Terminal=false
+Type=Application
+Categories=Utility;DesktopSettings;
+StartupWMClass=gutterTab

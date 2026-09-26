@@ -7,14 +7,28 @@ echo "=========================================================="
 echo "    gutterDesk: Universal Base Bootstrap (Debian 13)       "
 echo "=========================================================="
 
-# 1. Require sudo privileges
+# 1. Require sudo privileges & resolve target user
 if [ "$EUID" -ne 0 ]; then
     echo "Requesting administrative privileges..."
     sudo -v
 fi
 
+TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+[ -z "$TARGET_HOME" ] && TARGET_HOME="$HOME"
+
+echo "Target user: $TARGET_USER ($TARGET_HOME)"
+
+run_as_target() {
+    if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ] && [ "$TARGET_USER" != "root" ]; then
+        sudo -u "$TARGET_USER" -H "$@"
+    else
+        "$@"
+    fi
+}
+
 # 2. Install repository keys & sources
-echo "[1/7] Configuring third-party repositories..."
+echo "[1/8] Configuring third-party repositories..."
 sudo mkdir -p /etc/apt/keyrings /usr/share/keyrings
 
 if [ -f "$SCRIPT_DIR/keys/antigravity-repo-key.gpg" ]; then
@@ -28,21 +42,49 @@ if [ -f "$SCRIPT_DIR/keys/google-chrome.gpg" ]; then
 fi
 
 # 3. Update APT and install Universal Base packages
-echo "[2/7] Installing Universal Base packages..."
+echo "[2/8] Installing Universal Base packages..."
 sudo apt-get update
 sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/base.list" | tr '\n' ' ')
 
 # 4. Deploy Wallpapers & Brand Icons (User & System-wide)
 echo "[3/8] Deploying wallpaper, branding & system themes..."
-mkdir -p "$HOME/.local/share/backgrounds" "$HOME/.local/share/icons"
-cp "$SCRIPT_DIR/wallpapers/"*.png "$HOME/.local/share/backgrounds/" 2>/dev/null || true
-cp -r "$SCRIPT_DIR/assets/icons/"* "$HOME/.local/share/icons/" 2>/dev/null || true
+run_as_target mkdir -p "$TARGET_HOME/.local/share/backgrounds" "$TARGET_HOME/.local/share/icons"
+run_as_target cp "$SCRIPT_DIR/wallpapers/"*.png "$TARGET_HOME/.local/share/backgrounds/" 2>/dev/null || true
+run_as_target cp -r "$SCRIPT_DIR/assets/icons/"* "$TARGET_HOME/.local/share/icons/" 2>/dev/null || true
 
-# System-wide assets for display manager and boot splash
+# System-wide assets for display manager, boot splash and desktop environments
 sudo mkdir -p /usr/share/backgrounds/gutterdesk /usr/share/icons/gutterdesk /usr/share/themes/gutterdesk
 sudo cp "$SCRIPT_DIR/wallpapers/"*.png /usr/share/backgrounds/gutterdesk/ 2>/dev/null || true
 sudo cp -r "$SCRIPT_DIR/assets/icons/"* /usr/share/icons/gutterdesk/ 2>/dev/null || true
 sudo cp -r "$SCRIPT_DIR/dotfiles/themes/.themes/gutterdesk"/* /usr/share/themes/gutterdesk/ 2>/dev/null || true
+
+# Install icons to /usr/share/pixmaps/ and /usr/share/icons/hicolor/
+echo "Deploying system-wide icons..."
+sudo mkdir -p /usr/share/pixmaps
+for app in gutterdesk gutterdeck guttertab; do
+    if [ -f "$SCRIPT_DIR/assets/icons/${app}.svg" ]; then
+        sudo cp "$SCRIPT_DIR/assets/icons/${app}.svg" /usr/share/pixmaps/
+        sudo mkdir -p /usr/share/icons/hicolor/scalable/apps
+        sudo cp "$SCRIPT_DIR/assets/icons/${app}.svg" "/usr/share/icons/hicolor/scalable/apps/${app}.svg"
+    fi
+    for sz in 16 24 32 48 64 128 256 512; do
+        if [ -f "$SCRIPT_DIR/assets/icons/${app}_${sz}.png" ]; then
+            sudo mkdir -p "/usr/share/icons/hicolor/${sz}x${sz}/apps"
+            sudo cp "$SCRIPT_DIR/assets/icons/${app}_${sz}.png" "/usr/share/icons/hicolor/${sz}x${sz}/apps/${app}.png"
+            if [ "$sz" -eq 48 ]; then
+                sudo cp "$SCRIPT_DIR/assets/icons/${app}_48.png" "/usr/share/pixmaps/${app}.png"
+            fi
+        fi
+    done
+done
+which gtk-update-icon-cache >/dev/null 2>&1 && sudo gtk-update-icon-cache -f -q /usr/share/icons/hicolor 2>/dev/null || true
+
+# Copy desktop entries to /usr/share/applications/
+echo "Deploying system desktop entries..."
+sudo mkdir -p /usr/share/applications
+sudo cp "$SCRIPT_DIR/dotfiles/gutterdeck/.local/share/applications/gutterdeck.desktop" /usr/share/applications/ 2>/dev/null || true
+sudo cp "$SCRIPT_DIR/dotfiles/guttertab/.local/share/applications/guttertab.desktop" /usr/share/applications/ 2>/dev/null || true
+which update-desktop-database >/dev/null 2>&1 && sudo update-desktop-database /usr/share/applications 2>/dev/null || true
 
 # 5. Configure Boot Splash (Plymouth) & Login Greeter (LightDM)
 echo "[4/8] Configuring boot splash (Plymouth) & login greeter (LightDM)..."
@@ -79,51 +121,73 @@ fi
 sudo systemctl enable lightdm 2>/dev/null || true
 
 # 6. Deploy Dotfiles via GNU Stow
-echo "[5/8] Symlinking dotfiles into $HOME..."
+echo "[5/8] Symlinking dotfiles into $TARGET_HOME..."
 cd "$SCRIPT_DIR/dotfiles"
-stow -R -t "$HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake
+run_as_target mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin"
+
+if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
+    sudo -u "$TARGET_USER" -H stow -R -t "$TARGET_HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake
+else
+    stow -R -t "$TARGET_HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake
+fi
 
 # Restore Guake terminal styling & palette
-if [ -f "$HOME/.config/guake/guake-preferences.ini" ]; then
+if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then
     echo "Restoring Guake terminal styling & Twilight palette..."
-    which dconf >/dev/null 2>&1 && dconf load /org/guake/ < "$HOME/.config/guake/guake-preferences.ini" 2>/dev/null || true
+    which dconf >/dev/null 2>&1 && run_as_target dconf load /org/guake/ < "$TARGET_HOME/.config/guake/guake-preferences.ini" 2>/dev/null || true
 fi
 
 # Ensure helper scripts have execute permissions
-chmod +x "$HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
-chmod +x "$HOME/.config/openbox/autostart" 2>/dev/null || true
+chmod +x "$TARGET_HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
+chmod +x "$TARGET_HOME/.config/openbox/autostart" 2>/dev/null || true
 
 # 7. Set Default Applications
 echo "[6/8] Configuring default desktop associations..."
-xdg-mime default pcmanfm.desktop inode/directory 2>/dev/null || true
+run_as_target xdg-mime default pcmanfm.desktop inode/directory 2>/dev/null || true
 
 # 8. Build gutterDeck and gutterTab
 echo "[7/8] Building and installing desktop utilities..."
-mkdir -p "$HOME/projects" "$HOME/.local/bin"
+run_as_target mkdir -p "$TARGET_HOME/projects" "$TARGET_HOME/.local/bin"
+sudo mkdir -p /usr/local/bin
 
 build_tool() {
     local name="$1"
     local repo="$2"
-    local dir="$HOME/projects/$name"
+    local dir="$TARGET_HOME/projects/$name"
+    
+    # Fix ownership if previously cloned by root
+    if [ -d "$dir" ] && [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
+        sudo chown -R "$TARGET_USER:" "$dir"
+    fi
     
     if [ ! -d "$dir/.git" ]; then
-        echo "Attempting to clone $name..."
-        git clone "$repo" "$dir" || {
+        echo "Attempting to clone $name into $dir as $TARGET_USER..."
+        run_as_target git clone "$repo" "$dir" || {
             echo "Notice: Could not clone $name automatically. Ensure internet connectivity."
             return 0
         }
+    else
+        echo "Repository $dir already exists, updating..."
+        run_as_target git -C "$dir" pull || true
     fi
     
     if [ -f "$dir/CMakeLists.txt" ]; then
-        echo "Building $name..."
-        mkdir -p "$dir/build"
-        cd "$dir/build"
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-        make -j"$(nproc)"
+        echo "Building $name as $TARGET_USER..."
+        run_as_target mkdir -p "$dir/build"
+        run_as_target bash -c "cd '$dir/build' && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)"
+        
+        local bin_source=""
         if [ -f "$dir/build/$name" ]; then
-            cp "$dir/build/$name" "$HOME/.local/bin/"
+            bin_source="$dir/build/$name"
         elif [ -f "$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')" ]; then
-            cp "$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')" "$HOME/.local/bin/"
+            bin_source="$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')"
+        fi
+        
+        if [ -n "$bin_source" ]; then
+            local bin_basename="$(basename "$bin_source")"
+            echo "Installing $bin_basename to /usr/local/bin and $TARGET_HOME/.local/bin..."
+            sudo install -m 755 "$bin_source" "/usr/local/bin/$bin_basename"
+            run_as_target install -m 755 "$bin_source" "$TARGET_HOME/.local/bin/$bin_basename"
         fi
     fi
 }
@@ -131,6 +195,60 @@ build_tool() {
 # Public HTTPS clones for universal accessibility
 build_tool "gutterDeck" "https://github.com/aimasri/gutterDeck.git"
 build_tool "gutterTab" "https://github.com/aimasri/gutterTab.git"
+
+# Ensure both casing variants exist in /usr/local/bin and ~/.local/bin
+echo "Creating binary aliases and compatibility symlinks..."
+if [ -f /usr/local/bin/gutterdeck ]; then
+    sudo ln -sf /usr/local/bin/gutterdeck /usr/local/bin/gutterDeck
+elif [ -f /usr/local/bin/gutterDeck ]; then
+    sudo ln -sf /usr/local/bin/gutterDeck /usr/local/bin/gutterdeck
+fi
+
+if [ -f /usr/local/bin/gutterTab ]; then
+    sudo ln -sf /usr/local/bin/gutterTab /usr/local/bin/guttertab
+elif [ -f /usr/local/bin/guttertab ]; then
+    sudo ln -sf /usr/local/bin/guttertab /usr/local/bin/gutterTab
+fi
+
+if [ -f "$TARGET_HOME/.local/bin/gutterdeck" ]; then
+    run_as_target ln -sf "$TARGET_HOME/.local/bin/gutterdeck" "$TARGET_HOME/.local/bin/gutterDeck"
+elif [ -f "$TARGET_HOME/.local/bin/gutterDeck" ]; then
+    run_as_target ln -sf "$TARGET_HOME/.local/bin/gutterDeck" "$TARGET_HOME/.local/bin/gutterdeck"
+fi
+
+if [ -f "$TARGET_HOME/.local/bin/gutterTab" ]; then
+    run_as_target ln -sf "$TARGET_HOME/.local/bin/gutterTab" "$TARGET_HOME/.local/bin/guttertab"
+elif [ -f "$TARGET_HOME/.local/bin/guttertab" ]; then
+    run_as_target ln -sf "$TARGET_HOME/.local/bin/guttertab" "$TARGET_HOME/.local/bin/gutterTab"
+fi
+
+# Antigravity compatibility symlink: antigravity2 -> antigravity
+if [ -x /usr/bin/antigravity ]; then
+    sudo ln -sf /usr/bin/antigravity /usr/local/bin/antigravity2
+    run_as_target ln -sf /usr/bin/antigravity "$TARGET_HOME/.local/bin/antigravity2"
+elif [ -x /usr/local/bin/antigravity ]; then
+    sudo ln -sf /usr/local/bin/antigravity /usr/local/bin/antigravity2
+    run_as_target ln -sf /usr/local/bin/antigravity "$TARGET_HOME/.local/bin/antigravity2"
+fi
+
+# Install /etc/profile.d/gutterdesk.sh for system-wide PATH configuration
+echo "Configuring system-wide environment PATH in /etc/profile.d/gutterdesk.sh..."
+sudo tee /etc/profile.d/gutterdesk.sh >/dev/null << 'EOF'
+# gutterDesk system-wide PATH configuration
+if [ -n "$PATH" ]; then
+    case ":$PATH:" in
+        *:/usr/local/bin:*) ;;
+        *) export PATH="/usr/local/bin:$PATH" ;;
+    esac
+    case ":$PATH:" in
+        *:"$HOME/.local/bin":*) ;;
+        *) export PATH="$HOME/.local/bin:$PATH" ;;
+    esac
+else
+    export PATH="/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin"
+fi
+EOF
+sudo chmod 644 /etc/profile.d/gutterdesk.sh
 
 # 9. GitHub Authentication Status Check
 echo "[8/8] Checking GitHub SSH authentication status..."
