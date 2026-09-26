@@ -25,23 +25,16 @@
 ## Quickstart & Installation
 
 ### 1. Minimal Debian 13 Base Install
-Start with an official **Debian 13 (Trixie) Minimal Netinst ISO** (`amd64`). In `tasksel`, uncheck all desktop environments and check only:
-* `[*] SSH server`
-* `[*] standard system utilities`
+Start with an official **Debian 13 (Trixie) Minimal Netinst ISO** (`amd64`).
+* **Root Password**: Leave **empty / blank** during installer prompt. Debian will disable the root account and automatically grant full `sudo` privileges to your user.
+* In `tasksel`, uncheck all desktop environments and check only:
+  * `[*] SSH server`
+  * `[*] standard system utilities`
 
-### 2. Sudo & Git Setup (First Boot)
-If a root password was created during Debian installation, configure `sudo` and install `git`:
+### 2. First Boot & Bootstrap
+Log in with your normal user account and bootstrap the system:
 ```bash
-su -
-apt update && apt install -y sudo git
-usermod -aG sudo <username>
-exit
-# Log out and log back in (or reboot) to refresh group membership
-```
-
-### 3. Clone and Bootstrap
-Run the automated bootstrap script:
-```bash
+sudo apt update && sudo apt install -y git
 git clone https://github.com/aimasri/gutterDesk.git ~/projects/gutterDesk
 cd ~/projects/gutterDesk
 sudo ./bootstrap.sh

@@ -54,27 +54,15 @@ Before booting the USB installer on a target machine (especially modern laptops 
 
 ---
 
-## 3. Post-Boot: Sudo Configuration & Base Bootstrap
+## 3. Post-Boot: Universal Base Bootstrap
 
-Once rebooted into the text TTY console (`login:`):
+> [!NOTE]
+> During the Debian installer, leave the root password **blank / empty**. Debian will automatically disable root and grant full `sudo` privileges to your user account.
 
-### Step A: Configure Sudo Permissions
-Debian minimal does not add normal users to `sudoers` if a root password was created. Run this one-time fix:
-
-```bash
-su -
-# (Enter your root password)
-
-apt install -y sudo git
-echo "ahmed ALL=(ALL:ALL) ALL" > /etc/sudoers.d/ahmed
-chmod 0440 /etc/sudoers.d/ahmed
-exit
-```
-
-### Step B: Run Universal Base Bootstrap
-Log in as your normal user (`ahmed`) and run:
+Once rebooted into the text console (`login:`), log in as your regular user and bootstrap the desktop:
 
 ```bash
+sudo apt update && sudo apt install -y git
 git clone https://github.com/aimasri/gutterDesk.git ~/projects/gutterDesk
 cd ~/projects/gutterDesk
 sudo ./bootstrap.sh
@@ -115,8 +103,8 @@ An interactive checkbox menu lets you provision specialized environments on dema
 * **[ ] 2. Banyan Trading Engine** (Wine64, Python venv, MT5 daemon)
 * **[ ] 3. Banyan Trading Dashboard** (C++ monitoring UI)
 * **[ ] 4. Jellyfin & Tailscale** (Media streaming + remote mesh node)
-* **[ ] 5. Web Development Stack** (Apache2, Postgres, Redis, dnsmasq, vhosts)
-* **[ ] 6. Torrent Machine** (Transmission-gtk & UFW)
+* **[ ] 5. Web Development Stack** (Apache2, Postgres, Redis, vhosts)
+* **[ ] 6. Torrent Machine** (Transmission-gtk & UFW firewall configured for Tailscale/SSH)
 
 Press `Space` to select modules and `Enter` to install.
 

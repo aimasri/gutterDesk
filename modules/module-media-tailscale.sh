@@ -31,5 +31,10 @@ sudo usermod -aG render,video jellyfin || true
 sudo systemctl enable --now jellyfin
 sudo systemctl enable --now tailscaled
 
+# 5. Firewall configuration (if UFW is present)
+if command -v ufw >/dev/null 2>&1; then
+    sudo ufw allow in on tailscale0 comment 'Allow Tailscale mesh traffic' || true
+fi
+
 echo "Jellyfin media server and Tailscale daemon are running."
 echo "Run 'sudo tailscale up' to connect this machine to your Tailnet."

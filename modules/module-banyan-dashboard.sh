@@ -4,15 +4,10 @@ echo "=== Building Banyan Desktop Dashboard ==="
 
 [ -f "$HOME/.config/gutterdesk/banyan.conf" ] && source "$HOME/.config/gutterdesk/banyan.conf"
 
-BANYAN_REPO_URL="${BANYAN_REPO_URL:-git@github.com:aimasri/Banyan.git}"
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [ ! -d "$HOME/projects/Banyan/.git" ]; then
-    echo "Cloning Banyan repository from $BANYAN_REPO_URL..."
-    if ! git clone "$BANYAN_REPO_URL" "$HOME/projects/Banyan"; then
-        echo "Error: Failed to clone Banyan repository."
-        echo "Ensure your GitHub SSH key (~/.ssh/id_ed25519) is installed on this machine."
-        exit 1
-    fi
+    echo "Banyan repository not found. Running Banyan Engine setup first..."
+    "$SCRIPT_DIR/modules/module-banyan-engine.sh"
 fi
 
 mkdir -p "$HOME/projects/Banyan/desktop/build"

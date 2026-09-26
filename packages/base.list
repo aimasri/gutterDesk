@@ -66,6 +66,7 @@ cmake
 g++
 pkg-config
 git
+gh
 curl
 wget
 qt6-base-dev
