@@ -132,6 +132,16 @@ echo "[5/8] Symlinking dotfiles into $TARGET_HOME..."
 cd "$SCRIPT_DIR/dotfiles"
 run_as_target mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin"
 
+# Clean up pre-existing unmanaged conflicting files that prevent stow from linking
+for conf in ".config/volumeicon" ".config/gsimplecal" ".config/gtk-3.0/settings.ini" ".gtkrc-2.0" ".config/xsettingsd"; do
+    target="$TARGET_HOME/$conf"
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+        echo "Backing up pre-existing unmanaged $conf to $conf.bak..."
+        run_as_target rm -rf "$target.bak"
+        run_as_target mv "$target" "$target.bak"
+    fi
+done
+
 STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal"
 
 if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
