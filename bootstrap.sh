@@ -246,6 +246,9 @@ done
 # Clean up any leftover legacy .bak files from previous bootstrap iterations
 find "$TARGET_HOME/.config" "$TARGET_HOME/.local" -name "*.bak" -delete 2>/dev/null || true
 
+# Ensure all scripts in .local/bin are executable
+chmod +x "$TARGET_HOME/.local/bin/"* 2>/dev/null || true
+
 # Ensure all deployed dotfiles and home directory (including .Xauthority) are owned by TARGET_USER
 sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
 
