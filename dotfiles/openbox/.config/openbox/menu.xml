@@ -91,12 +91,12 @@
         <execute>sh -c '[ -x "$HOME/projects/Banyan/desktop/build/banyan_daemon" ] &amp;&amp; "$HOME/projects/Banyan/desktop/build/banyan_daemon" --show || banyan_daemon --show'</execute>
       </action>
     </item>
-    <item label="TradingView - Cable (GBPUSD)">
+    <item label="Cable">
       <action name="Execute">
         <execute>chromium "https://www.tradingview.com/chart/?symbol=GBPUSD"</execute>
       </action>
     </item>
-    <item label="TradingView - Gold (XAUUSD)">
+    <item label="Gold">
       <action name="Execute">
         <execute>chromium "https://www.tradingview.com/chart/?symbol=XAUUSD"</execute>
       </action>
