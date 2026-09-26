@@ -27,10 +27,7 @@ which picom >/dev/null 2>&1 && (picom -b &) || (which cbpp-compositor >/dev/null
 ## 3. Start tint2 panel (delayed 1s for compositing)
 (sleep 1s && tint2) &
 
-## 4. Start Wireless network indicator daemon (iwd + iwgtk)
-which iwgtk >/dev/null 2>&1 && (iwgtk -i &)
-
-## 5. Dropdown terminal daemon (guake)
+## 4. Dropdown terminal daemon (guake)
 if which guake >/dev/null 2>&1; then
     ([ -f ~/.config/guake/guake-preferences.ini ] && which dconf >/dev/null 2>&1 && dconf load /org/guake/ < ~/.config/guake/guake-preferences.ini 2>/dev/null; guake) &
 fi

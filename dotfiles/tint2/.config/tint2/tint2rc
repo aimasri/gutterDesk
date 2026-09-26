@@ -59,7 +59,7 @@ border_color = #888888 20
 # Panel
 panel_monitor = all
 panel_position = bottom center horizontal
-panel_items = TSBC
+panel_items = TSEBC
 panel_size = 100% 30
 panel_margin = 0 -1
 panel_padding = 0 0
@@ -176,4 +176,23 @@ battery_tooltip_enabled = 1
 ac_connected_cmd = notify-send "Power Connected" "AC adapter plugged in"
 ac_disconnected_cmd = notify-send "Power Disconnected" "Running on battery"
 
+#---------------------------------------------
+# Executor 1 - Network (Wi-Fi / Ethernet status)
+#---------------------------------------------
+execp = new
+execp_command = ~/.local/bin/tint2-network.sh
+execp_interval = 3
+execp_has_icon = 1
+execp_cache_icon = 0
+execp_continuous = 0
+execp_markup = 1
+execp_lclick_command = iwgtk
+execp_rclick_command = iwgtk
+execp_padding = 4 0 0
+execp_background_id = 0
+execp_centered = 1
+execp_icon_w = 20
+execp_icon_h = 20
+
 # End of config
+
