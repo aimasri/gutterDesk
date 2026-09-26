@@ -34,6 +34,8 @@ xfce4-screenshooter
 gsimplecal
 network-manager
 network-manager-gnome
+wpasupplicant
+wireless-regdb
 volumeicon-alsa
 pavucontrol
 catfish

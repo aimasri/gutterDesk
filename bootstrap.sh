@@ -120,12 +120,17 @@ if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
 fi
 sudo systemctl enable lightdm 2>/dev/null || true
 sudo systemctl enable NetworkManager 2>/dev/null || true
+sudo systemctl enable wpa_supplicant 2>/dev/null || true
 sudo systemctl enable bluetooth 2>/dev/null || true
 
 # Ensure NetworkManager manages all network devices
 if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
     sudo sed -i 's/managed=false/managed=true/g' /etc/NetworkManager/NetworkManager.conf
 fi
+
+# Unblock Wi-Fi hardware/software switches
+which rfkill >/dev/null 2>&1 && sudo rfkill unblock wifi 2>/dev/null || true
+sudo systemctl restart wpa_supplicant 2>/dev/null || true
 
 # Migrate netinst interfaces to NetworkManager so nm-applet reflects active Wi-Fi
 if [ -f /etc/network/interfaces ]; then
@@ -140,6 +145,7 @@ if [ -f /etc/network/interfaces ]; then
 
         sudo ifdown -a --exclude=lo 2>/dev/null || true
         sudo systemctl restart NetworkManager 2>/dev/null || true
+        nmcli radio wifi on 2>/dev/null || true
 
         if [ -n "$WIFI_SSID" ] && [ -n "$WIFI_PSK" ]; then
             echo "Connecting NetworkManager to $WIFI_SSID..."
@@ -147,9 +153,11 @@ if [ -f /etc/network/interfaces ]; then
         fi
     else
         sudo systemctl restart NetworkManager 2>/dev/null || true
+        nmcli radio wifi on 2>/dev/null || true
     fi
 else
     sudo systemctl restart NetworkManager 2>/dev/null || true
+    nmcli radio wifi on 2>/dev/null || true
 fi
 
 # 6. Deploy Dotfiles via GNU Stow
