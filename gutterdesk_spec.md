@@ -52,11 +52,18 @@ Activate only the modules required for the target machine:
 
 * **[ ] Module 5: Web Development Stack (`modules/module-webstack.sh`)**
   * *Purpose:* Multi-domain web hosting, reverse proxying, and local development.
-  * *Includes:* Apache2 (with rewrite/ssl/proxy modules), PostgreSQL, Redis, dnsmasq. Repositories cloned via manifest (`~/.config/gutterdesk/webstack_repos.conf`).
+  * *Includes:* Apache2 (with rewrite/ssl/proxy modules), PostgreSQL, Redis. Repositories cloned via manifest (`~/.config/gutterdesk/webstack_repos.conf`).
 
 * **[ ] Module 6: Torrent Machine (`modules/module-torrent.sh`)**
   * *Purpose:* Isolated background file acquisition.
-  * *Includes:* Transmission-gtk and UFW firewall rules.
+  * *Includes:* Transmission-gtk and UFW firewall rules (with automatic SSH and Tailscale mesh pass-through).
+
+---
+
+## 4. Hardware & Power Management (Always-On Server Posture)
+* **Lid Switch Handling:** Configured via `/etc/systemd/logind.conf.d/gutterdesk-lid.conf` to ignore lid closure (`HandleLidSwitch=ignore`), preventing suspend when operating laptops as closed always-on servers.
+* **Battery Health Threshold:** Automated systemd service sets `/sys/class/power_supply/BAT*/charge_control_end_threshold` to `80` on supported hardware (ASUS, ThinkPad), stopping charging at 80% to protect lithium-ion cells under 24/7 AC power.
+* **Persistent Battery Tray Icon:** `tint2rc` configures `battery_hide = 101`, ensuring the battery icon and percentage status remain visible in the panel at all times regardless of threshold capping.
 
 ---
 
