@@ -1,0 +1,68 @@
+# X11 Display Server & Login Manager
+xserver-xorg
+xinit
+lightdm
+lightdm-gtk-greeter
+
+# Window Manager, Panel & Compositor
+openbox
+obconf
+tint2
+picom
+nitrogen
+gmrun
+rofi
+
+# File Manager & Terminal
+pcmanfm
+guake
+terminator
+
+# Core Utilities, Media & Viewers
+viewnior
+atril
+vlc
+file-roller
+scrot
+xfce4-screenshooter
+gsimplecal
+network-manager-gnome
+mate-volume-control
+pavucontrol
+catfish
+htop
+xscreensaver
+whiptail
+
+# Fonts
+fonts-liberation
+fonts-dejavu
+fonts-font-awesome
+
+# Compilation Toolchain (for gutterDeck & gutterTab)
+build-essential
+cmake
+g++
+pkg-config
+stow
+git
+curl
+wget
+qt6-base-dev
+qt6-tools-dev
+libqt6core5compat6-dev
+libqt6sql6-sqlite
+libxcb1-dev
+libxcb-ewmh-dev
+libxcb-icccm4-dev
+libxcb-keysyms1-dev
+libxcb-util-dev
+libxcb-res0-dev
+python3
+python3-pip
+python3-venv
+
+# Browsers & AI IDE (Installed via injected APT repositories in bootstrap.sh)
+chromium
+google-chrome-stable
+antigravity

@@ -1,0 +1,10 @@
+{
+    "autoLaunchProfile": "default",
+    "profiles": [
+        {
+            "accentColor": "#38bdf8",
+            "displayName": "Default",
+            "id": "default"
+        }
+    ]
+}

@@ -1,0 +1,34 @@
+{
+    "decks": [
+        {
+            "color": "#8038bdf8",
+            "command": "google-chrome --new-window",
+            "id": "deck_browser",
+            "name": "Browser"
+        },
+        {
+            "color": "#80818cf8",
+            "command": "pcmanfm ~",
+            "id": "deck_files",
+            "name": "Files"
+        },
+        {
+            "color": "#80a855f7",
+            "command": "guake-toggle",
+            "id": "deck_term",
+            "name": "Terminal"
+        },
+        {
+            "color": "#80ec4899",
+            "command": "antigravity2",
+            "id": "deck_ide",
+            "name": "Antigravity"
+        }
+    ],
+    "settings": {
+        "animation_duration_ms": 250,
+        "gutter_expanded_width": 44,
+        "gutter_width": 4,
+        "swell_duration_ms": 160
+    }
+}
