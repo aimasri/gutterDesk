@@ -2,14 +2,14 @@
 ## =================
 
 ## Set monitors layout if configured
-[ -f ~/.screenlayout/default.sh ] && ~/.screenlayout/default.sh
+[ -f ~/.screenlayout/default.sh ] && (~/.screenlayout/default.sh &)
 xrdb -merge ~/.Xresources &
 
 ## XSETTINGS daemon (propagates GTK & Papirus-Dark icon theme to tray applets)
 which xsettingsd >/dev/null 2>&1 && (xsettingsd &)
 
-## LX PolicyKit
-lxpolkit &
+## PolicyKit Authentication Agent
+which lxpolkit >/dev/null 2>&1 && (lxpolkit &)
 
 ## Sequential Desktop Group Start:
 ## 1. Auto-detect orientation and apply matching wallpapers (backgrounded)
@@ -26,8 +26,7 @@ which iwgtk >/dev/null 2>&1 && (iwgtk -i &)
 
 ## 5. Dropdown terminal daemon (guake)
 if which guake >/dev/null 2>&1; then
-    [ -f ~/.config/guake/guake-preferences.ini ] && which dconf >/dev/null 2>&1 && dconf load /org/guake/ < ~/.config/guake/guake-preferences.ini 2>/dev/null || true
-    guake &
+    ([ -f ~/.config/guake/guake-preferences.ini ] && which dconf >/dev/null 2>&1 && dconf load /org/guake/ < ~/.config/guake/guake-preferences.ini 2>/dev/null; guake) &
 fi
 
 ## 6. Volume keys and systray icon
@@ -37,7 +36,7 @@ which volumeicon >/dev/null 2>&1 && (volumeicon &)
 which blueman-applet >/dev/null 2>&1 && (blueman-applet &)
 
 ## 8. Start PCManFM Daemon for instant file management
-pcmanfm -d &
+which pcmanfm >/dev/null 2>&1 && (pcmanfm -d &)
 
 ## Native DPMS power management (clean fade-to-black after 10m idle)
 xset s 600 600 &
@@ -55,4 +54,6 @@ xset r rate 250 25 &
 xset b off &
 
 ## Notifications
-/usr/lib/*/xfce4/notifyd/xfce4-notifyd &
+for notifyd in /usr/lib/*/xfce4/notifyd/xfce4-notifyd /usr/lib/xfce4-notifyd/xfce4-notifyd; do
+    [ -x "$notifyd" ] && "$notifyd" &
+done

@@ -247,8 +247,8 @@ for pkg in $STOW_PKGS; do
     fi
 done
 
-# Ensure all deployed dotfiles and base directories are owned by TARGET_USER
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" 2>/dev/null || true
+# Ensure all deployed dotfiles and home directory (including .Xauthority) are owned by TARGET_USER
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
 
 # Restore Guake terminal styling & palette
 if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then
@@ -378,9 +378,10 @@ else
     echo "! Action Required: GitHub SSH keys are not yet configured."
     echo "  1. Copy your private keys to ~/.ssh/ (e.g. id_ed25519)"
     echo "  2. Ensure permissions: chmod 600 ~/.ssh/* && chmod 700 ~/.ssh"
-    echo "  3. Or run 'gh auth login' to authenticate via browser/token."
     echo "----------------------------------------------------------"
 fi
+
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
 
 echo "=========================================================="
 echo "    gutterDesk Base Bootstrap Completed Successfully!     "
