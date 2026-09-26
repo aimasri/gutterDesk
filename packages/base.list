@@ -41,8 +41,7 @@ volumeicon-alsa
 pavucontrol
 catfish
 htop
-xdg-desktop-portal
-xdg-desktop-portal-gtk
+light-locker
 whiptail
 dconf-cli
 xsettingsd

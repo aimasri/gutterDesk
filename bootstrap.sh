@@ -113,14 +113,11 @@ if [ -f /etc/default/grub ]; then
     fi
 fi
 
-# Deploy LightDM Greeter & Session Configuration
-sudo mkdir -p /etc/lightdm/lightdm-gtk-greeter.conf.d /etc/lightdm/lightdm.conf.d
+# Deploy LightDM Greeter Configuration
+sudo mkdir -p /etc/lightdm/lightdm-gtk-greeter.conf.d
 if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
     sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf
     sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf.d/99_gutterdesk.conf
-fi
-if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm.conf.d/99_gutterdesk.conf" ]; then
-    sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm.conf.d/99_gutterdesk.conf" /etc/lightdm/lightdm.conf.d/99_gutterdesk.conf
 fi
 sudo systemctl enable lightdm 2>/dev/null || true
 sudo systemctl enable bluetooth 2>/dev/null || true

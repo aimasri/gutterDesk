@@ -44,6 +44,9 @@ which blueman-applet >/dev/null 2>&1 && (blueman-applet &)
 ## 8. Start PCManFM Daemon for instant file management
 which pcmanfm >/dev/null 2>&1 && (pcmanfm -d &)
 
+## 9. Screen lock daemon (delegates lock screen to LightDM greeter)
+which light-locker >/dev/null 2>&1 && (light-locker --lock-on-suspend --lock-on-lid --no-late-locking &)
+
 ## Native DPMS power management (clean fade-to-black after 10m idle)
 xset s 600 600 &
 xset dpms 600 900 1200 &
