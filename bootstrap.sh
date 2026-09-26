@@ -228,24 +228,16 @@ for pkg in $STOW_PKGS; do
                 src="$pkg_dir/$rel"
                 dst="$TARGET_HOME/$rel"
                 
-                # Ensure destination directory exists
                 mkdir -p "$(dirname "$dst")"
-                
-                # If destination is a real file or dir that does not point to our repo, back it up
-                if [ -e "$dst" ] && [ ! -L "$dst" ]; then
-                    echo "Backing up pre-existing unmanaged $rel to $rel.bak..."
-                    rm -rf "$dst.bak"
-                    mv "$dst" "$dst.bak"
-                elif [ -L "$dst" ]; then
-                    rm -f "$dst"
-                fi
-                
-                # Create clean absolute symlink
+                [ -d "$dst" ] && [ ! -L "$dst" ] && rm -rf "$dst"
                 ln -sf "$src" "$dst"
             done
         )
     fi
 done
+
+# Clean up any leftover legacy .bak files from previous bootstrap iterations
+find "$TARGET_HOME/.config" "$TARGET_HOME/.local" -name "*.bak" -delete 2>/dev/null || true
 
 # Ensure all deployed dotfiles and home directory (including .Xauthority) are owned by TARGET_USER
 sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
