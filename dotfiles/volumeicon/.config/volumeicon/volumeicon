@@ -5,8 +5,8 @@ channel=Master
 [StatusIcon]
 stepsize=5
 onclick=pavucontrol
-theme=White
-use_gtk_theme=true
+theme=White Gnome
+use_gtk_theme=false
 show_notification=false
 notification_type=0
 

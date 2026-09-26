@@ -127,6 +127,31 @@ if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
     sudo sed -i 's/managed=false/managed=true/g' /etc/NetworkManager/NetworkManager.conf
 fi
 
+# Migrate netinst interfaces to NetworkManager so nm-applet reflects active Wi-Fi
+if [ -f /etc/network/interfaces ]; then
+    if grep -q -E '^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp|enp|eth)' /etc/network/interfaces; then
+        echo "Migrating netinst network interfaces to NetworkManager..."
+        WIFI_SSID=$(grep -E '^[[:space:]]*wpa-ssid[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
+        WIFI_PSK=$(grep -E '^[[:space:]]*wpa-psk[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
+
+        sudo cp /etc/network/interfaces /etc/network/interfaces.bak
+        sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp|enp|eth).*/# &/g' /etc/network/interfaces
+        sudo sed -i -E 's/^[[:space:]]*wpa-.*/# &/g' /etc/network/interfaces
+
+        sudo ifdown -a --exclude=lo 2>/dev/null || true
+        sudo systemctl restart NetworkManager 2>/dev/null || true
+
+        if [ -n "$WIFI_SSID" ] && [ -n "$WIFI_PSK" ]; then
+            echo "Connecting NetworkManager to $WIFI_SSID..."
+            sudo nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PSK" 2>/dev/null || true
+        fi
+    else
+        sudo systemctl restart NetworkManager 2>/dev/null || true
+    fi
+else
+    sudo systemctl restart NetworkManager 2>/dev/null || true
+fi
+
 # 6. Deploy Dotfiles via GNU Stow
 echo "[5/8] Symlinking dotfiles into $TARGET_HOME..."
 cd "$SCRIPT_DIR/dotfiles"
