@@ -1,6 +1,7 @@
 /* ==============================================================================
-   gutterDesk GTK3 Theme - Optimized for LightDM GTK Greeter & Dark Obsidian Desktop
-   Palette: Obsidian #080c0e, Card #0c1015, Surface #141822, Sky Accent #38bdf8
+   gutterDesk GTK3 Theme - Optimized for LightDM GTK Greeter & Lock Screen
+   Palette: Obsidian #080c0e, Card #0b0f14, Surface #121722, Sky Accent #38bdf8
+   Aesthetic: Sharp geometric corners (NO rounded squares/squircles), solid surface
    ============================================================================== */
 
 @import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css");
@@ -9,9 +10,9 @@
    Top Status Panel
    ------------------------------------------------------------- */
 #panel_window {
-    background-color: rgba(8, 12, 14, 0.85);
+    background-color: rgba(8, 12, 14, 0.90);
     color: #f8fafc;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: none;
     font-weight: 500;
 }
@@ -23,6 +24,7 @@
     font-weight: 500;
     padding: 3px 10px;
     border: none;
+    border-radius: 0px;
     box-shadow: none;
 }
 
@@ -32,62 +34,58 @@
 }
 
 #panel_window .menubar .menu {
-    background-color: #0c1015;
-    border: 1px solid #222938;
-    border-radius: 6px;
+    background-color: #0b0f14;
+    border: 1px solid #1e2638;
+    border-radius: 0px;
     padding: 4px;
 }
 
 #panel_window .menubar .menu .menuitem {
     color: #e2e8f0;
     padding: 5px 12px;
-    border-radius: 4px;
+    border-radius: 0px;
 }
 
 #panel_window .menubar .menu .menuitem:hover {
-    background-color: #1e293b;
+    background-color: #161c28;
     color: #38bdf8;
 }
 
 /* -------------------------------------------------------------
-   Login Window (Centered Obsidian Card)
+   Login & Lock Window (Right-side Minimalist Obsidian Card)
+   Sharp corners: NO rounded squares
    ------------------------------------------------------------- */
 #login_window,
 #shutdown_dialog,
 #restart_dialog {
-    background-color: #0c1015;
+    background-color: #0b0f14;
     color: #f8fafc;
-    border: 1px solid #222938;
-    border-radius: 10px;
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
-    padding: 24px;
+    border: 1px solid #1e2638;
+    border-radius: 0px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+    padding: 24px 28px;
 }
 
 #content_frame {
-    padding-bottom: 16px;
+    padding-bottom: 12px;
 }
 
-/* Avatar Box */
-#user_image {
-    padding: 4px;
-    background-color: #141822;
-    border: 1px solid #222938;
-    border-radius: 8px;
-    box-shadow: none;
-}
-
+/* User image hidden natively via hide-user-image=true in greeter.conf */
+#user_image,
 #user_image_border {
-    border-radius: 8px;
+    opacity: 0;
+    min-height: 0px;
+    min-width: 0px;
+    padding: 0px;
     border: none;
-    box-shadow: none;
 }
 
 /* User Selection Combobox */
 #login_window GtkComboBox .button {
-    background-color: #141822;
+    background-color: #121722;
     color: #f8fafc;
-    border: 1px solid #2a3245;
-    border-radius: 6px;
+    border: 1px solid #232d3f;
+    border-radius: 0px;
     padding: 6px 12px;
     font-weight: 600;
 }
@@ -99,10 +97,10 @@
 
 /* Input Fields (Username & Password) */
 #login_window .entry {
-    background-color: #141822;
+    background-color: #121722;
     color: #f8fafc;
-    border: 1px solid #2a3245;
-    border-radius: 6px;
+    border: 1px solid #232d3f;
+    border-radius: 0px;
     padding: 8px 12px;
     font-size: 13px;
     transition: all 150ms ease-in-out;
@@ -111,13 +109,13 @@
 
 #login_window .entry:focus {
     border-color: #38bdf8;
-    background-color: #161b26;
-    box-shadow: 0 0 0 1px #38bdf8;
+    background-color: #151b27;
+    box-shadow: none;
 }
 
 /* Action Area & Buttons */
 #buttonbox_frame {
-    padding-top: 16px;
+    padding-top: 14px;
     border: none;
     background: transparent;
     box-shadow: none;
@@ -126,10 +124,10 @@
 #login_window .button,
 #shutdown_dialog .button,
 #restart_dialog .button {
-    background-color: #1a202c;
-    color: #f8fafc;
-    border: 1px solid #2d3748;
-    border-radius: 6px;
+    background-color: #161c28;
+    color: #cbd5e1;
+    border: 1px solid #283348;
+    border-radius: 0px;
     padding: 6px 18px;
     font-weight: 500;
     transition: all 150ms ease-in-out;
@@ -139,8 +137,8 @@
 #login_window .button:hover,
 #shutdown_dialog .button:hover,
 #restart_dialog .button:hover {
-    background-color: #252e3f;
-    border-color: #4a5568;
+    background-color: #1f2738;
+    border-color: #3b4b66;
     color: #ffffff;
 }
 
@@ -150,6 +148,7 @@
     border-color: #38bdf8;
     color: #ffffff;
     font-weight: 600;
+    border-radius: 0px;
 }
 
 #login_window .button.default:hover,
@@ -160,10 +159,10 @@
 
 /* Warning & PAM Infobar */
 #greeter_infobar {
-    background-color: #2a1215;
+    background-color: #241113;
     color: #fca5a5;
     border: 1px solid #7f1d1d;
-    border-radius: 6px;
+    border-radius: 0px;
     padding: 8px;
     margin-bottom: 12px;
 }

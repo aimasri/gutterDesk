@@ -327,4 +327,34 @@ svg_portrait = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 192
 with open(f"{WALLPAPER_DIR}/portrait.svg", "w") as f:
     f.write(svg_portrait)
 
+# 3. Login / Lock Screen Background (Minimalist, Left-aligned Hero, Clean Obsidian)
+svg_login = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+{COMMON_DEFS}
+  <!-- Canvas Background -->
+  <rect width="1920" height="1080" fill="url(#bgVignette)"/>
+
+  <!-- Left Side: gutterDesk Hero Branding (Centered at X=495, Y=540) -->
+  <g transform="translate(325, 275) scale(1.35)">
+    <use href="#deskMatrix"/>
+  </g>
+
+  <text x="495" y="625" text-anchor="middle"
+        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
+        font-size="64" font-weight="400" letter-spacing="-1.2px">
+    <tspan fill="#F8FAFC" font-weight="400">gutter</tspan><tspan fill="url(#deskGrad)" font-weight="800">Desk</tspan>
+  </text>
+
+  <text x="495" y="660" text-anchor="middle"
+        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
+        font-size="14" font-weight="600" letter-spacing="4px" fill="#94A3B8">
+    TACTILE WORKSPACE DISTRO
+  </text>
+</svg>"""
+
+with open(f"{WALLPAPER_DIR}/login-background.svg", "w") as f:
+    f.write(svg_login)
+
+subprocess.run(["inkscape", "--export-filename=" + f"{WALLPAPER_DIR}/login-background.png", f"{WALLPAPER_DIR}/login-background.svg"], check=True)
+
 print("Wallpapers generated.")
+

@@ -426,11 +426,6 @@
         </action>
       </item>
       <menu execute="cbpp-power-pipemenu" id="PowerPipeMenu" label="Power Profiles"/>
-      <item label="Screensaver">
-        <action name="Execute">
-          <execute>xscreensaver-demo</execute>
-        </action>
-      </item>
       <item label="Choose Wallpaper">
         <action name="Execute">
           <execute>nitrogen</execute>
@@ -453,7 +448,7 @@
     <separator/>
     <item label="Lock Screen">
       <action name="Execute">
-        <execute>xscreensaver-command -lock</execute>
+        <execute>light-locker-command -l 2>/dev/null || dm-tool lock</execute>
       </action>
     </item>
     <item label="Shutdown">

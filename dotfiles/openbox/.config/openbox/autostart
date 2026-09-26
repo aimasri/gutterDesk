@@ -36,8 +36,13 @@ which mate-power-manager >/dev/null 2>&1 && mate-power-manager &
 ## 8. Start PCManFM Daemon for instant file management
 pcmanfm -d &
 
-## 9. Screen lock daemon
-xscreensaver -no-splash &
+## 9. Screen lock daemon (light-locker delegates lock screen to LightDM)
+which light-locker >/dev/null 2>&1 && (light-locker --lock-on-suspend --lock-on-lid &)
+
+## Native DPMS power management (clean fade-to-black after 10m idle)
+xset s 600 600 &
+xset dpms 600 900 1200 &
+xset s blank &
 
 ## 10. Clipboard manager
 which parcellite >/dev/null 2>&1 && (sleep 2s && parcellite) &
