@@ -7,6 +7,28 @@
         <execute>guake-toggle</execute>
       </action>
     </item>
+
+    <!-- Screenshots -->
+    <menu id="screenshots-menu" label="Screenshots">
+      <item label="Select Area...">
+        <action name="Execute">
+          <execute>scrot -s '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</execute>
+        </action>
+      </item>
+      <item label="Full Screen (Now)">
+        <action name="Execute">
+          <execute>scrot '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</execute>
+        </action>
+      </item>
+      <item label="Full Screen (In 5s)...">
+        <action name="Execute">
+          <execute>scrot -d 5 '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</execute>
+        </action>
+      </item>
+    </menu>
+
+    <separator/>
+
     <item label="File Manager">
       <action name="Execute">
         <execute>pcmanfm</execute>
@@ -44,25 +66,6 @@
       </item>
     </menu>
 
-    <!-- Screenshots -->
-    <menu id="screenshots-menu" label="Screenshots">
-      <item label="Select Area...">
-        <action name="Execute">
-          <execute>scrot -s '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</execute>
-        </action>
-      </item>
-      <item label="Full Screen (Now)">
-        <action name="Execute">
-          <execute>scrot '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</execute>
-        </action>
-      </item>
-      <item label="Full Screen (In 5s)...">
-        <action name="Execute">
-          <execute>scrot -d 5 '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</execute>
-        </action>
-      </item>
-    </menu>
-
     <separator label="Productivity"/>
 
     <item label="Antigravity">
@@ -80,9 +83,22 @@
         <execute>gutterTab</execute>
       </action>
     </item>
+
+    <separator label="Trading"/>
+
     <item label="Banyan">
       <action name="Execute">
         <execute>sh -c '[ -x "$HOME/projects/Banyan/desktop/build/banyan_daemon" ] &amp;&amp; "$HOME/projects/Banyan/desktop/build/banyan_daemon" --show || banyan_daemon --show'</execute>
+      </action>
+    </item>
+    <item label="TradingView - Cable (GBPUSD)">
+      <action name="Execute">
+        <execute>chromium "https://www.tradingview.com/chart/?symbol=GBPUSD"</execute>
+      </action>
+    </item>
+    <item label="TradingView - Gold (XAUUSD)">
+      <action name="Execute">
+        <execute>chromium "https://www.tradingview.com/chart/?symbol=XAUUSD"</execute>
       </action>
     </item>
 
