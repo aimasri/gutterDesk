@@ -61,7 +61,7 @@
         <execute>gutterTab</execute>
       </action>
     </item>
-    <item label="Banyan Trading Dashboard">
+    <item label="Banyan">
       <action name="Execute">
         <execute>sh -c '[ -x "$HOME/projects/Banyan/desktop/build/banyan_daemon" ] &amp;&amp; "$HOME/projects/Banyan/desktop/build/banyan_daemon" --show || banyan_daemon --show'</execute>
       </action>
