@@ -209,43 +209,46 @@ sudo systemctl unmask iwd 2>/dev/null || true
 sudo systemctl enable iwd 2>/dev/null || true
 sudo systemctl restart iwd 2>/dev/null || true
 
-# 6. Deploy Dotfiles via GNU Stow
-echo "[5/8] Symlinking dotfiles into $TARGET_HOME..."
-cd "$SCRIPT_DIR/dotfiles"
+# 6. Deploy Dotfiles via Direct Atomic Symlinking
+echo "[5/8] Deploying dotfiles into $TARGET_HOME..."
+DOTFILES_DIR="$SCRIPT_DIR/dotfiles"
 STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal iwgtk"
 
 # Ensure target home base directories exist with proper user ownership
-sudo mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes"
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" 2>/dev/null || true
+sudo mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh"
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" 2>/dev/null || true
 
-# Clean up pre-existing unmanaged conflicting files that prevent stow from linking
-echo "Resolving potential dotfile conflicts before stowing..."
 for pkg in $STOW_PKGS; do
-    if [ -d "$SCRIPT_DIR/dotfiles/$pkg" ]; then
+    pkg_dir="$DOTFILES_DIR/$pkg"
+    if [ -d "$pkg_dir" ]; then
         (
-            cd "$SCRIPT_DIR/dotfiles/$pkg"
+            cd "$pkg_dir"
             find . -type f -o -type l | while read -r f; do
                 rel="${f#./}"
-                target="$TARGET_HOME/$rel"
-                if [ -e "$target" ] && [ ! -L "$target" ]; then
+                src="$pkg_dir/$rel"
+                dst="$TARGET_HOME/$rel"
+                
+                # Ensure destination directory exists
+                mkdir -p "$(dirname "$dst")"
+                
+                # If destination is a real file or dir that does not point to our repo, back it up
+                if [ -e "$dst" ] && [ ! -L "$dst" ]; then
                     echo "Backing up pre-existing unmanaged $rel to $rel.bak..."
-                    sudo rm -rf "$target.bak"
-                    sudo mv "$target" "$target.bak"
-                    sudo chown -R "$TARGET_USER:$TARGET_USER" "$target.bak" 2>/dev/null || true
+                    rm -rf "$dst.bak"
+                    mv "$dst" "$dst.bak"
+                elif [ -L "$dst" ]; then
+                    rm -f "$dst"
                 fi
+                
+                # Create clean absolute symlink
+                ln -sf "$src" "$dst"
             done
         )
     fi
 done
 
-# Ensure all directories under ~/.config and ~/.local are owned by the target user prior to stowing
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" 2>/dev/null || true
-
-if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
-    sudo -u "$TARGET_USER" -H stow -R -t "$TARGET_HOME" $STOW_PKGS
-else
-    stow -R -t "$TARGET_HOME" $STOW_PKGS
-fi
+# Ensure all deployed dotfiles and base directories are owned by TARGET_USER
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" 2>/dev/null || true
 
 # Restore Guake terminal styling & palette
 if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then
