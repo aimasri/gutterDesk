@@ -47,6 +47,7 @@ dconf-cli
 xsettingsd
 lxpolkit
 xfce4-notifyd
+openssh-server
 
 # Bluetooth
 bluez
@@ -64,7 +65,6 @@ build-essential
 cmake
 g++
 pkg-config
-stow
 git
 curl
 wget

@@ -46,6 +46,11 @@ echo "[2/8] Installing Universal Base packages..."
 sudo apt-get update
 sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/base.list" | tr '\n' ' ')
 
+# Remove redundant google-chrome.list if the package created google-chrome.sources (avoids duplicate warnings)
+if [ -f /etc/apt/sources.list.d/google-chrome.sources ] && [ -f /etc/apt/sources.list.d/google-chrome.list ]; then
+    sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+fi
+
 # 4. Deploy Wallpapers & Brand Icons (User & System-wide)
 echo "[3/8] Deploying wallpaper, branding & system themes..."
 sudo mkdir -p "$TARGET_HOME/.local/share/backgrounds" "$TARGET_HOME/.local/share/icons"
@@ -121,10 +126,8 @@ if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
 fi
 sudo systemctl enable lightdm 2>/dev/null || true
 sudo systemctl enable bluetooth 2>/dev/null || true
+sudo systemctl enable ssh 2>/dev/null || true
 
-# Stop and disable bloated/conflicting networking services
-sudo systemctl stop NetworkManager wpa_supplicant networking 2>/dev/null || true
-sudo systemctl disable NetworkManager wpa_supplicant networking 2>/dev/null || true
 
 # Configure modern lightweight wireless stack (iwd)
 echo "Configuring iwd (Intel Wireless Daemon)..."
