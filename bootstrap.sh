@@ -388,15 +388,50 @@ export GTK_USE_PORTAL=0
 EOF
 sudo chmod 644 /etc/profile.d/gutterdesk.sh
 
-# 9. GitHub Authentication Status Check
-echo "[8/8] Checking GitHub SSH authentication status..."
+# 9. Power, Lid & Battery Management (Always-On Laptop/Server Support)
+echo "[8/9] Configuring power, lid switch, and battery health..."
+
+# A. Ignore laptop lid switch so closing the screen does not suspend server operations
+sudo mkdir -p /etc/systemd/logind.conf.d
+sudo tee /etc/systemd/logind.conf.d/gutterdesk-lid.conf >/dev/null << 'EOF'
+[Login]
+HandleLidSwitch=ignore
+HandleLidSwitchExternalPower=ignore
+HandleLidSwitchDocked=ignore
+EOF
+
+# B. Configure 80% battery charging threshold if supported by hardware (e.g. ASUS / ThinkPad)
+BAT_THRESHOLD_FILE=$(ls /sys/class/power_supply/BAT*/charge_control_end_threshold 2>/dev/null | head -n 1)
+if [ -n "$BAT_THRESHOLD_FILE" ]; then
+    echo "Hardware battery charge control detected ($BAT_THRESHOLD_FILE). Setting 80% threshold..."
+    echo 80 | sudo tee "$BAT_THRESHOLD_FILE" >/dev/null || true
+    
+    sudo tee /etc/systemd/system/battery-charge-threshold.service >/dev/null << EOF
+[Unit]
+Description=Set Battery Charge Threshold to 80% (Battery Health)
+After=multi-user.target
+ConditionPathExists=$BAT_THRESHOLD_FILE
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo 80 > $BAT_THRESHOLD_FILE'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo systemctl daemon-reload
+    sudo systemctl enable battery-charge-threshold.service 2>/dev/null || true
+fi
+
+# 10. GitHub Authentication Status Check
+echo "[9/9] Checking GitHub SSH authentication status..."
 if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
     echo "✓ GitHub SSH authentication verified."
 else
     echo "----------------------------------------------------------"
     echo "! Action Required: GitHub SSH keys are not yet configured."
-    echo "  1. Copy your private keys to ~/.ssh/ (e.g. id_ed25519)"
-    echo "  2. Ensure permissions: chmod 600 ~/.ssh/* && chmod 700 ~/.ssh"
+    echo "  Run 'gh auth login' or launch the Banyan module to authenticate directly."
     echo "----------------------------------------------------------"
 fi
 
