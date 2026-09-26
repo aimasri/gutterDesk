@@ -32,14 +32,54 @@ echo "[2/7] Installing Universal Base packages..."
 sudo apt-get update
 sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/base.list" | tr '\n' ' ')
 
-# 4. Deploy Wallpapers & Brand Icons
-echo "[3/7] Deploying wallpaper and branding assets..."
+# 4. Deploy Wallpapers & Brand Icons (User & System-wide)
+echo "[3/8] Deploying wallpaper, branding & system themes..."
 mkdir -p "$HOME/.local/share/backgrounds" "$HOME/.local/share/icons"
 cp "$SCRIPT_DIR/wallpapers/"*.png "$HOME/.local/share/backgrounds/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/assets/icons/"* "$HOME/.local/share/icons/" 2>/dev/null || true
 
-# 5. Deploy Dotfiles via GNU Stow
-echo "[4/7] Symlinking dotfiles into $HOME..."
+# System-wide assets for display manager and boot splash
+sudo mkdir -p /usr/share/backgrounds/gutterdesk /usr/share/icons/gutterdesk /usr/share/themes/gutterdesk
+sudo cp "$SCRIPT_DIR/wallpapers/"*.png /usr/share/backgrounds/gutterdesk/ 2>/dev/null || true
+sudo cp -r "$SCRIPT_DIR/assets/icons/"* /usr/share/icons/gutterdesk/ 2>/dev/null || true
+sudo cp -r "$SCRIPT_DIR/dotfiles/themes/.themes/gutterdesk"/* /usr/share/themes/gutterdesk/ 2>/dev/null || true
+
+# 5. Configure Boot Splash (Plymouth) & Login Greeter (LightDM)
+echo "[4/8] Configuring boot splash (Plymouth) & login greeter (LightDM)..."
+
+# Deploy Plymouth Theme
+if [ -d "$SCRIPT_DIR/themes/plymouth/gutterdesk" ]; then
+    echo "Installing gutterDesk Plymouth theme..."
+    sudo mkdir -p /usr/share/plymouth/themes/gutterdesk
+    sudo cp -r "$SCRIPT_DIR/themes/plymouth/gutterdesk/"* /usr/share/plymouth/themes/gutterdesk/
+    if [ -x /usr/sbin/plymouth-set-default-theme ]; then
+        echo "Activating gutterDesk Plymouth boot splash..."
+        sudo /usr/sbin/plymouth-set-default-theme gutterdesk -R 2>/dev/null || true
+    fi
+fi
+
+# Ensure 'splash' is in GRUB_CMDLINE_LINUX_DEFAULT
+if [ -f /etc/default/grub ]; then
+    if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
+        if ! grep -q 'splash' /etc/default/grub; then
+            echo "Enabling graphical boot splash in /etc/default/grub..."
+            sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 splash"/' /etc/default/grub
+            sudo sed -i 's/  */ /g' /etc/default/grub
+            which update-grub >/dev/null 2>&1 && sudo update-grub || true
+        fi
+    fi
+fi
+
+# Deploy LightDM Greeter Configuration
+sudo mkdir -p /etc/lightdm/lightdm-gtk-greeter.conf.d
+if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
+    sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf
+    sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf.d/99_gutterdesk.conf
+fi
+sudo systemctl enable lightdm 2>/dev/null || true
+
+# 6. Deploy Dotfiles via GNU Stow
+echo "[5/8] Symlinking dotfiles into $HOME..."
 cd "$SCRIPT_DIR/dotfiles"
 stow -R -t "$HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab
 
@@ -47,12 +87,12 @@ stow -R -t "$HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdec
 chmod +x "$HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
 chmod +x "$HOME/.config/openbox/autostart" 2>/dev/null || true
 
-# 6. Set Default Applications
-echo "[5/7] Configuring default desktop associations..."
+# 7. Set Default Applications
+echo "[6/8] Configuring default desktop associations..."
 xdg-mime default pcmanfm.desktop inode/directory 2>/dev/null || true
 
-# 7. Build gutterDeck and gutterTab
-echo "[6/7] Building and installing desktop utilities..."
+# 8. Build gutterDeck and gutterTab
+echo "[7/8] Building and installing desktop utilities..."
 mkdir -p "$HOME/projects" "$HOME/.local/bin"
 
 build_tool() {
@@ -86,8 +126,8 @@ build_tool() {
 build_tool "gutterDeck" "https://github.com/aimasri/gutterDeck.git"
 build_tool "gutterTab" "https://github.com/aimasri/gutterTab.git"
 
-# 8. GitHub Authentication Status Check
-echo "[7/7] Checking GitHub SSH authentication status..."
+# 9. GitHub Authentication Status Check
+echo "[8/8] Checking GitHub SSH authentication status..."
 if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
     echo "✓ GitHub SSH authentication verified."
 else

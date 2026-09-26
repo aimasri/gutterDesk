@@ -4,6 +4,11 @@ xinit
 lightdm
 lightdm-gtk-greeter
 
+# Boot Splash
+plymouth
+plymouth-themes
+plymouth-label
+
 # Window Manager, Panel & Compositor
 openbox
 obconf

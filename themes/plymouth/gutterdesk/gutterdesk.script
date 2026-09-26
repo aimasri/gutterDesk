@@ -1,0 +1,193 @@
+# ==============================================================================
+# gutterDesk - Plymouth Boot Splash Theme Script
+# Deep obsidian background (#080c0e), centered branding, smooth neon spinner
+# ==============================================================================
+
+# Background Color: Obsidian #080c0e
+Window.SetBackgroundTopColor(0.03137, 0.04706, 0.05490);
+Window.SetBackgroundBottomColor(0.03137, 0.04706, 0.05490);
+
+# Global state
+status = "normal";
+counter = 0;
+prompt_active = 0;
+
+# Load Logo
+logo.image = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.opacity = 1.0;
+
+# Load 30-Frame Neon Circular Spinner
+NUM_SPINNER_FRAMES = 30;
+for (i = 0; i < NUM_SPINNER_FRAMES; i++) {
+    if (i < 10)
+        num_str = "0" + i;
+    else
+        num_str = "" + i;
+    spinner_images[i] = Image("spinner-" + num_str + ".png");
+}
+
+spinner.sprite = Sprite();
+spinner.sprite.SetImage(spinner_images[0]);
+
+# Load Password Dialog Assets
+bullet_image = Image("bullet.png");
+entry_image  = Image("entry.png");
+box_image    = Image("box.png");
+lock_image   = Image("lock.png");
+
+dialog.box_sprite   = Sprite();
+dialog.entry_sprite = Sprite();
+dialog.lock_sprite  = Sprite();
+dialog.bullets      = [];
+
+# ------------------------------------------------------------------------------
+# Positioning logic based on active window dimensions
+# ------------------------------------------------------------------------------
+fun update_positions () {
+    screen_w = Window.GetWidth();
+    screen_h = Window.GetHeight();
+    origin_x = Window.GetX();
+    origin_y = Window.GetY();
+
+    # Center logo slightly above vertical midpoint
+    logo_w = logo.image.GetWidth();
+    logo_h = logo.image.GetHeight();
+    logo.x = origin_x + (screen_w / 2) - (logo_w / 2);
+    logo.y = origin_y + (screen_h / 2) - (logo_h / 2) - 40;
+    logo.sprite.SetPosition(logo.x, logo.y, 10);
+
+    # Center spinner 28px below the logo
+    spin_w = spinner_images[0].GetWidth();
+    spin_h = spinner_images[0].GetHeight();
+    spinner.x = origin_x + (screen_w / 2) - (spin_w / 2);
+    spinner.y = logo.y + logo_h + 24;
+    spinner.sprite.SetPosition(spinner.x, spinner.y, 12);
+
+    # Dialog elements centered below logo
+    box_w = box_image.GetWidth();
+    box_h = box_image.GetHeight();
+    dialog.box_x = origin_x + (screen_w / 2) - (box_w / 2);
+    dialog.box_y = spinner.y + 40;
+    dialog.box_sprite.SetPosition(dialog.box_x, dialog.box_y, 20);
+
+    entry_w = entry_image.GetWidth();
+    entry_h = entry_image.GetHeight();
+    dialog.entry_x = origin_x + (screen_w / 2) - (entry_w / 2);
+    dialog.entry_y = dialog.box_y + 60;
+    dialog.entry_sprite.SetPosition(dialog.entry_x, dialog.entry_y, 21);
+
+    lock_w = lock_image.GetWidth();
+    lock_h = lock_image.GetHeight();
+    dialog.lock_x = dialog.entry_x + 12;
+    dialog.lock_y = dialog.entry_y + (entry_h / 2) - (lock_h / 2);
+    dialog.lock_sprite.SetPosition(dialog.lock_x, dialog.lock_y, 22);
+}
+
+update_positions();
+
+# ------------------------------------------------------------------------------
+# Refresh callback: advances the spinner animation (30 FPS)
+# ------------------------------------------------------------------------------
+fun refresh_callback () {
+    global.counter++;
+    frame = global.counter % NUM_SPINNER_FRAMES;
+    spinner.sprite.SetImage(spinner_images[frame]);
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# ------------------------------------------------------------------------------
+# Screen Resize Handlers
+# ------------------------------------------------------------------------------
+fun window_callback (width, height) {
+    update_positions();
+}
+# Window.SetWindowFunction is supported in modern Plymouth
+if (Plymouth.SetWindowFunction) {
+    Plymouth.SetWindowFunction(window_callback);
+}
+
+# ------------------------------------------------------------------------------
+# Password Prompt / LUKS Disk Encryption Handling
+# ------------------------------------------------------------------------------
+fun display_password_callback (prompt, bullets) {
+    global.status = "password";
+    global.prompt_active = 1;
+
+    # Set dialog sprites
+    dialog.box_sprite.SetImage(box_image);
+    dialog.entry_sprite.SetImage(entry_image);
+    dialog.lock_sprite.SetImage(lock_image);
+
+    dialog.box_sprite.SetOpacity(1);
+    dialog.entry_sprite.SetOpacity(1);
+    dialog.lock_sprite.SetOpacity(1);
+
+    # Render masked bullets
+    bullet_w = bullet_image.GetWidth();
+    bullet_h = bullet_image.GetHeight();
+    bullet_y = dialog.entry_y + (entry_image.GetHeight() / 2) - (bullet_h / 2);
+    start_x  = dialog.entry_x + 42;
+
+    # Clear excess bullets if user backspaced
+    for (i = bullets; dialog.bullets[i]; i++) {
+        dialog.bullets[i].sprite.SetOpacity(0);
+        dialog.bullets[i] = NULL;
+    }
+
+    # Draw active bullets
+    for (i = 0; i < bullets; i++) {
+        if (!dialog.bullets[i]) {
+            dialog.bullets[i].sprite = Sprite(bullet_image);
+            dialog.bullets[i].x = start_x + (i * (bullet_w + 4));
+            dialog.bullets[i].y = bullet_y;
+            dialog.bullets[i].sprite.SetPosition(dialog.bullets[i].x, dialog.bullets[i].y, 25);
+        }
+        dialog.bullets[i].sprite.SetOpacity(1);
+    }
+}
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+
+fun display_normal_callback () {
+    global.status = "normal";
+    global.prompt_active = 0;
+
+    dialog.box_sprite.SetOpacity(0);
+    dialog.entry_sprite.SetOpacity(0);
+    dialog.lock_sprite.SetOpacity(0);
+
+    for (i = 0; dialog.bullets[i]; i++) {
+        dialog.bullets[i].sprite.SetOpacity(0);
+        dialog.bullets[i] = NULL;
+    }
+}
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+
+# ------------------------------------------------------------------------------
+# Messages / FSCK warnings
+# ------------------------------------------------------------------------------
+fun message_callback (text) {
+    msg_image = Image.Text(text, 0.7, 0.75, 0.8, 1.0, "Liberation Sans 11");
+    if (!global.msg_sprite) {
+        global.msg_sprite = Sprite();
+    }
+    global.msg_sprite.SetImage(msg_image);
+    msg_x = Window.GetX() + (Window.GetWidth() / 2) - (msg_image.GetWidth() / 2);
+    msg_y = spinner.y + 70;
+    global.msg_sprite.SetPosition(msg_x, msg_y, 15);
+    global.msg_sprite.SetOpacity(1);
+}
+Plymouth.SetMessageFunction(message_callback);
+
+# ------------------------------------------------------------------------------
+# Quit Callback
+# ------------------------------------------------------------------------------
+fun quit_callback () {
+    logo.sprite.SetOpacity(0);
+    spinner.sprite.SetOpacity(0);
+    if (global.msg_sprite) global.msg_sprite.SetOpacity(0);
+    dialog.box_sprite.SetOpacity(0);
+    dialog.entry_sprite.SetOpacity(0);
+    dialog.lock_sprite.SetOpacity(0);
+}
+Plymouth.SetQuitFunction(quit_callback);

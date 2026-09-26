@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=gutterDesk
+Description=Tactile Workspace Distro Boot Splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/gutterdesk
+ScriptFile=/usr/share/plymouth/themes/gutterdesk/gutterdesk.script

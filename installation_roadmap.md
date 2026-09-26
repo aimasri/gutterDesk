@@ -82,11 +82,13 @@ cd ~/projects/gutterDesk
 
 #### What `bootstrap.sh` does automatically:
 1. Injects official GPG keys and APT repos for Google Chrome and Antigravity IDE.
-2. Installs Universal Base packages (X11, Openbox, Tint2, PCManFM, Guake, Scrot, Viewnior, Atril, LightDM, build toolchain).
-3. Deploys custom **Midnight Forest** dotfiles into `$HOME` via GNU Stow.
-4. Deploys multi-monitor wallpapers and brand icons.
-5. Clones and compiles **`gutterDeck`** and **`gutterTab`** from GitHub into `~/.local/bin/`.
-6. Sets up LightDM login manager to boot directly into Openbox.
+2. Installs Universal Base packages (X11, Openbox, Tint2, PCManFM, Geany, Guake, Scrot, Viewnior, Atril, LightDM, Plymouth, build toolchain).
+3. Deploys custom **Midnight Forest** and **gutterDesk** dotfiles into `$HOME` via GNU Stow.
+4. Deploys multi-monitor wallpapers, brand icons, and system-wide GTK themes.
+5. Installs and activates the **gutterDesk Plymouth boot splash** theme (centered vector emblem + rotating neon spinner on `#080c0e` obsidian).
+6. Configures GRUB bootloader parameters (`quiet splash`) and rebuilds initramfs.
+7. Configures the matching **gutterDesk LightDM GTK greeter** login screen (centered obsidian login card, Papirus-Dark icons, custom GTK styling).
+8. Clones and compiles **`gutterDeck`** and **`gutterTab`** from GitHub into `~/.local/bin/`.
 
 Once completed, reboot:
 ```bash
