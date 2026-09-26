@@ -81,7 +81,13 @@ sudo systemctl enable lightdm 2>/dev/null || true
 # 6. Deploy Dotfiles via GNU Stow
 echo "[5/8] Symlinking dotfiles into $HOME..."
 cd "$SCRIPT_DIR/dotfiles"
-stow -R -t "$HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab
+stow -R -t "$HOME" openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake
+
+# Restore Guake terminal styling & palette
+if [ -f "$HOME/.config/guake/guake-preferences.ini" ]; then
+    echo "Restoring Guake terminal styling & Twilight palette..."
+    which dconf >/dev/null 2>&1 && dconf load /org/guake/ < "$HOME/.config/guake/guake-preferences.ini" 2>/dev/null || true
+fi
 
 # Ensure helper scripts have execute permissions
 chmod +x "$HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
