@@ -49,17 +49,17 @@
     </menu>
 
     <menu id="launchers-menu" label="Run / Search">
-      <item label="Run Program (gmrun)...">
+      <item label="Run Program...">
         <action name="Execute">
           <execute>gmrun</execute>
         </action>
       </item>
-      <item label="Application Launcher (rofi)">
+      <item label="Application Launcher">
         <action name="Execute">
           <execute>rofi -show drun -show-icons</execute>
         </action>
       </item>
-      <item label="Window Switcher (rofi)">
+      <item label="Window Switcher">
         <action name="Execute">
           <execute>rofi -show window</execute>
         </action>
