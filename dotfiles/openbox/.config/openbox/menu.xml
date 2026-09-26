@@ -228,6 +228,12 @@
     </menu>
     <separator/>
     <menu id="network" label="Network">
+      <item label="Wi-Fi Networks">
+        <action name="Execute">
+          <execute>iwgtk</execute>
+        </action>
+      </item>
+      <separator/>
       <item label="Filezilla">
         <action name="Execute">
           <execute>filezilla</execute>

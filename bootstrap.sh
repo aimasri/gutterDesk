@@ -119,46 +119,57 @@ if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
     sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf.d/99_gutterdesk.conf
 fi
 sudo systemctl enable lightdm 2>/dev/null || true
-sudo systemctl enable NetworkManager 2>/dev/null || true
-sudo systemctl enable wpa_supplicant 2>/dev/null || true
 sudo systemctl enable bluetooth 2>/dev/null || true
 
-# Ensure NetworkManager manages all network devices
-if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
-    sudo sed -i 's/managed=false/managed=true/g' /etc/NetworkManager/NetworkManager.conf
+# Stop and disable bloated/conflicting networking services
+sudo systemctl stop NetworkManager wpa_supplicant networking 2>/dev/null || true
+sudo systemctl disable NetworkManager wpa_supplicant networking 2>/dev/null || true
+
+# Configure modern lightweight wireless stack (iwd)
+echo "Configuring iwd (Intel Wireless Daemon)..."
+sudo mkdir -p /etc/iwd /var/lib/iwd
+cat << 'EOF' | sudo tee /etc/iwd/main.conf >/dev/null
+[General]
+EnableNetworkConfiguration=true
+
+[Network]
+NameResolvingService=resolvconf
+EOF
+
+# Deploy system-wide iwgtk configuration
+if [ -f "$SCRIPT_DIR/dotfiles/iwgtk/.config/iwgtk.conf" ]; then
+    sudo cp "$SCRIPT_DIR/dotfiles/iwgtk/.config/iwgtk.conf" /etc/iwgtk.conf
 fi
 
 # Unblock Wi-Fi hardware/software switches
 which rfkill >/dev/null 2>&1 && sudo rfkill unblock wifi 2>/dev/null || true
-sudo systemctl restart wpa_supplicant 2>/dev/null || true
 
-# Migrate netinst interfaces to NetworkManager so nm-applet reflects active Wi-Fi
+# Add target user to netdev group for unprivileged network control
+sudo usermod -a -G netdev "$TARGET_USER" 2>/dev/null || true
+
+# Migrate any existing netinst Wi-Fi credentials into iwd profile
 if [ -f /etc/network/interfaces ]; then
-    if grep -q -E '^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp|enp|eth)' /etc/network/interfaces; then
-        echo "Migrating netinst network interfaces to NetworkManager..."
-        WIFI_SSID=$(grep -E '^[[:space:]]*wpa-ssid[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
-        WIFI_PSK=$(grep -E '^[[:space:]]*wpa-psk[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
+    WIFI_SSID=$(grep -E '^[[:space:]]*wpa-ssid[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
+    WIFI_PSK=$(grep -E '^[[:space:]]*wpa-psk[[:space:]]+' /etc/network/interfaces | head -n1 | awk '{$1=""; print $0}' | sed 's/^[ \t]*//' | tr -d '"')
 
-        sudo cp /etc/network/interfaces /etc/network/interfaces.bak
-        sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp|enp|eth).*/# &/g' /etc/network/interfaces
-        sudo sed -i -E 's/^[[:space:]]*wpa-.*/# &/g' /etc/network/interfaces
-
-        sudo ifdown -a --exclude=lo 2>/dev/null || true
-        sudo systemctl restart NetworkManager 2>/dev/null || true
-        nmcli radio wifi on 2>/dev/null || true
-
-        if [ -n "$WIFI_SSID" ] && [ -n "$WIFI_PSK" ]; then
-            echo "Connecting NetworkManager to $WIFI_SSID..."
-            sudo nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PSK" 2>/dev/null || true
-        fi
-    else
-        sudo systemctl restart NetworkManager 2>/dev/null || true
-        nmcli radio wifi on 2>/dev/null || true
+    if [ -n "$WIFI_SSID" ] && [ -n "$WIFI_PSK" ]; then
+        echo "Migrating netinst Wi-Fi profile for '$WIFI_SSID' to iwd..."
+        cat << EOF | sudo tee "/var/lib/iwd/${WIFI_SSID}.psk" >/dev/null
+[Security]
+Passphrase=${WIFI_PSK}
+EOF
+        sudo chmod 600 "/var/lib/iwd/${WIFI_SSID}.psk"
     fi
-else
-    sudo systemctl restart NetworkManager 2>/dev/null || true
-    nmcli radio wifi on 2>/dev/null || true
+
+    sudo cp /etc/network/interfaces /etc/network/interfaces.bak
+    sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp|enp|eth).*/# &/g' /etc/network/interfaces
+    sudo sed -i -E 's/^[[:space:]]*wpa-.*/# &/g' /etc/network/interfaces
 fi
+
+# Enable and start iwd
+sudo systemctl unmask iwd 2>/dev/null || true
+sudo systemctl enable iwd 2>/dev/null || true
+sudo systemctl restart iwd 2>/dev/null || true
 
 # 6. Deploy Dotfiles via GNU Stow
 echo "[5/8] Symlinking dotfiles into $TARGET_HOME..."
@@ -166,7 +177,7 @@ cd "$SCRIPT_DIR/dotfiles"
 run_as_target mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin"
 
 # Clean up pre-existing unmanaged conflicting files that prevent stow from linking
-for conf in ".config/volumeicon" ".config/gsimplecal" ".config/gtk-3.0/settings.ini" ".gtkrc-2.0" ".config/xsettingsd"; do
+for conf in ".config/volumeicon" ".config/gsimplecal" ".config/gtk-3.0/settings.ini" ".gtkrc-2.0" ".config/xsettingsd" ".config/iwgtk.conf"; do
     target="$TARGET_HOME/$conf"
     if [ -e "$target" ] && [ ! -L "$target" ]; then
         echo "Backing up pre-existing unmanaged $conf to $conf.bak..."
@@ -175,7 +186,7 @@ for conf in ".config/volumeicon" ".config/gsimplecal" ".config/gtk-3.0/settings.
     fi
 done
 
-STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal"
+STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal iwgtk"
 
 if [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
     sudo -u "$TARGET_USER" -H stow -R -t "$TARGET_HOME" $STOW_PKGS

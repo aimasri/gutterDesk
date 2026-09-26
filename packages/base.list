@@ -32,9 +32,10 @@ file-roller
 scrot
 xfce4-screenshooter
 gsimplecal
-network-manager
-network-manager-gnome
-wpasupplicant
+# Modern Lightweight Wireless Stack (iwd + iwgtk)
+iwd
+iwgtk
+openresolv
 wireless-regdb
 volumeicon-alsa
 pavucontrol
