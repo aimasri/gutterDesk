@@ -41,7 +41,7 @@ sudo ./bootstrap.sh
 sudo reboot
 ```
 
-### 4. Enable Functional Modules (Optional)
+### 3. Enable Functional Modules (Optional)
 Once booted into the graphical desktop, launch the module installer:
 ```bash
 cd ~/projects/gutterDesk

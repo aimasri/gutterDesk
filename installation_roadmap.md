@@ -36,8 +36,9 @@ Before booting the USB installer on a target machine (especially modern laptops 
 2. **Network & Domain:**
    * Hostname: choose your machine name (e.g. `aim-stream`, `gutterdesk-laptop`).
    * **Domain Name:** **Leave completely blank** (prevents DNS conflicts on roaming Wi-Fi).
-3. **User Account:**
-   * Enter your name and pick your standard username (e.g. `ahmed`).
+3. **User Account & Root Password:**
+   * **Root Password:** **Leave completely blank / empty** (Debian will disable the root account and automatically grant full `sudo` privileges to your user).
+   * **Username:** Enter your name and choose your standard username (e.g. `ahmed`).
 4. **Partitioning:**
    * Select: **"Guided - use entire disk"**.
    * Select: **"All files in one partition"** (pools root `/`, Docker, Postgres, and `/home` dynamically into one storage pool).
