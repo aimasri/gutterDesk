@@ -22,7 +22,7 @@ if [ "$1" = "--prompt-in-terminal" ]; then
     if whiptail --title "gutterDesk Setup" \
         --yes-button "Launch Installer" \
         --no-button "Later" \
-        --yesno "Welcome to gutterDesk!\n\nWould you like to run the Modular System Installer now to configure system capabilities (Banyan, Jellyfin, Web Stack, Torrents)?" 12 65; then
+        --yesno "Welcome to gutterDesk!\n\n[RECOMMENDED BEFORE INSTALLATION]\nFor seamless configuration of private repositories, agent tools, and browser sync, we recommend:\n  1. Signing into your Google account in Google Chrome.\n  2. Authenticating GitHub ('gh auth login' or restoring your SSH keys).\n\nWould you like to run the Modular System Installer now?" 15 72; then
         touch "$MARKER"
         cd "$REPO_DIR" && ./install.sh
     else
