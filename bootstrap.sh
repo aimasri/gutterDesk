@@ -151,72 +151,74 @@ which rfkill >/dev/null 2>&1 && sudo rfkill unblock wifi 2>/dev/null || true
 sudo usermod -a -G netdev "$TARGET_USER" 2>/dev/null || true
 
 # Migrate existing netinst Wi-Fi credentials into iwd profile
-echo "Scanning for netinst Wi-Fi credentials to migrate..."
+echo "Scanning for netinst Wi-Fi credentials to migrate to iwd..."
 python3 - << 'PYEOF'
-import os, re
+import os, glob, re
 
-files = ['/etc/network/interfaces', '/etc/network/interfaces.bak']
-ssid, psk = None, None
+search_files = [
+    '/etc/network/interfaces',
+    '/etc/network/interfaces.bak',
+] + glob.glob('/etc/network/interfaces.d/*') + glob.glob('/etc/wpa_supplicant/*.conf')
 
-for path in files:
-    if os.path.exists(path):
+found_networks = []
+
+for path in search_files:
+    if os.path.isfile(path):
         try:
             with open(path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-                # Matches wpa-ssid even if commented out (# wpa-ssid "MySSID")
+                
+                # Check wpa-ssid and wpa-psk/wpa-passphrase
                 m_ssid = re.search(r'wpa-ssid\s+["\']?([^"\'\r\n]+)', content)
-                # Matches wpa-psk or wpa-passphrase even if commented out
                 m_psk = re.search(r'wpa-(?:psk|passphrase)\s+["\']?([^"\'\r\n]+)', content)
                 if m_ssid and m_psk:
-                    s = m_ssid.group(1).strip().strip('"').strip("'")
-                    p = m_psk.group(1).strip().strip('"').strip("'")
+                    s = m_ssid.group(1).strip().strip('"\'')
+                    p = m_psk.group(1).strip().strip('"\'')
                     if s and p:
-                        ssid, psk = s, p
-                        break
+                        found_networks.append((s, p))
+                
+                # Check network={ ssid=".." psk=".." }
+                for block in re.finditer(r'network\s*=\s*\{([^}]+)\}', content):
+                    b = block.group(1)
+                    s = re.search(r'ssid\s*=\s*["\']?([^"\'\r\n]+)', b)
+                    p = re.search(r'psk\s*=\s*["\']?([^"\'\r\n]+)', b)
+                    if s and p:
+                        found_networks.append((s.group(1).strip().strip('"\''), p.group(1).strip().strip('"\'')))
         except Exception:
             pass
 
-if ssid and psk:
-    os.makedirs('/var/lib/iwd', exist_ok=True)
+def encode_iwd_filename(ssid):
+    res = []
+    for b in ssid.encode('utf-8'):
+        c = chr(b)
+        if c.isalnum() or c in ('_', '-', '.'):
+            res.append(c)
+        else:
+            res.append(f"={b:02x}")
+    return "".join(res) + ".psk"
+
+migrated = 0
+os.makedirs('/var/lib/iwd', exist_ok=True)
+for ssid, psk in set(found_networks):
     is_hex = len(psk) == 64 and all(c in '0123456789abcdefABCDEF' for c in psk)
     sec_key = 'PreSharedKey' if is_hex else 'Passphrase'
-    target_file = f'/var/lib/iwd/{ssid}.psk'
-    with open(target_file, 'w', encoding='utf-8') as f:
-        f.write(f'[Security]\n{sec_key}={psk}\n')
-    os.chmod(target_file, 0o600)
-    print(f"✓ Migrated Wi-Fi credentials for '{ssid}' ({sec_key}) into {target_file}")
-else:
-    print("Notice: No saved Wi-Fi credentials found in /etc/network/interfaces.")
+    target_file = os.path.join('/var/lib/iwd', encode_iwd_filename(ssid))
+    try:
+        with open(target_file, 'w', encoding='utf-8') as f:
+            f.write(f'[Security]\n{sec_key}={psk}\n')
+        os.chmod(target_file, 0o600)
+        print(f"✓ Migrated Wi-Fi credentials for '{ssid}' into {target_file}")
+        migrated += 1
+    except Exception as e:
+        print(f"Notice: Could not write iwd profile for '{ssid}': {e}")
+
+if migrated == 0:
+    print("Notice: No saved Wi-Fi credentials found to migrate. Connect via iwgtk on first desktop login.")
 PYEOF
 
-# Comment out only wireless interfaces in /etc/network/interfaces so iwd has exclusive control
-if [ -f /etc/network/interfaces ]; then
-    if [ ! -f /etc/network/interfaces.bak ]; then
-        sudo cp /etc/network/interfaces /etc/network/interfaces.bak
-    fi
-    sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp).*/# &/g' /etc/network/interfaces
-    sudo sed -i -E 's/^[[:space:]]*wpa-.*/# &/g' /etc/network/interfaces
-fi
-
-# Stop and disable bloated/conflicting networking services
-sudo systemctl stop NetworkManager wpa_supplicant 2>/dev/null || true
-sudo systemctl disable NetworkManager wpa_supplicant 2>/dev/null || true
-sudo systemctl stop networking 2>/dev/null || true
-
-# Enable and start iwd
+# Enable iwd service so it will be ready for active use
 sudo systemctl unmask iwd 2>/dev/null || true
 sudo systemctl enable iwd 2>/dev/null || true
-sudo systemctl restart iwd 2>/dev/null || true
-
-# Wait briefly for iwd to associate and acquire DHCP lease
-echo "Awaiting wireless network association..."
-for i in $(seq 1 12); do
-    if ping -c 1 -W 1 1.1.1.1 >/dev/null 2>&1; then
-        echo "✓ Network connection established."
-        break
-    fi
-    sleep 1
-done
 
 # 6. Deploy Dotfiles via Direct Atomic Symlinking
 echo "[5/8] Deploying dotfiles into $TARGET_HOME..."
@@ -254,6 +256,20 @@ chmod +x "$TARGET_HOME/.local/bin/"* 2>/dev/null || true
 # Ensure all deployed dotfiles and home directory (including .Xauthority) are owned by TARGET_USER
 sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
 
+# Authorize development workstation public key if present
+if [ -f "$SCRIPT_DIR/keys/workstation.pub" ]; then
+    echo "Authorizing development workstation SSH access..."
+    sudo mkdir -p "$TARGET_HOME/.ssh"
+    sudo chmod 700 "$TARGET_HOME/.ssh"
+    sudo touch "$TARGET_HOME/.ssh/authorized_keys"
+    KEY_CONTENT=$(cat "$SCRIPT_DIR/keys/workstation.pub")
+    if ! grep -Fq "$KEY_CONTENT" "$TARGET_HOME/.ssh/authorized_keys" 2>/dev/null; then
+        echo "$KEY_CONTENT" | sudo tee -a "$TARGET_HOME/.ssh/authorized_keys" >/dev/null
+    fi
+    sudo chmod 600 "$TARGET_HOME/.ssh/authorized_keys"
+    sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.ssh"
+fi
+
 # Restore Guake terminal styling & palette
 if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then
     echo "Restoring Guake terminal styling & Twilight palette..."
@@ -281,15 +297,17 @@ build_tool() {
     
     # Fix ownership if previously cloned by root
     if [ -d "$dir" ] && [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
-        sudo chown -R "$TARGET_USER:" "$dir"
+        sudo chown -R "$TARGET_USER:$TARGET_USER" "$dir"
     fi
     
     if [ ! -d "$dir/.git" ]; then
         echo "Attempting to clone $name into $dir as $TARGET_USER..."
-        run_as_target git clone "$repo" "$dir" || {
-            echo "Notice: Could not clone $name automatically. Ensure internet connectivity."
-            return 0
-        }
+        [ -d "$dir" ] && rm -rf "$dir"
+        if ! run_as_target git clone "$repo" "$dir"; then
+            echo "ERROR: Failed to clone $name from $repo" >&2
+            echo "Please ensure internet connectivity to GitHub." >&2
+            exit 1
+        fi
     else
         echo "Repository $dir already exists, updating..."
         run_as_target git -C "$dir" pull || true
@@ -298,7 +316,10 @@ build_tool() {
     if [ -f "$dir/CMakeLists.txt" ]; then
         echo "Building $name as $TARGET_USER..."
         run_as_target mkdir -p "$dir/build"
-        run_as_target bash -c "cd '$dir/build' && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)"
+        if ! run_as_target bash -c "cd '$dir/build' && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j\$(nproc)"; then
+            echo "ERROR: Compilation of $name failed!" >&2
+            exit 1
+        fi
         
         local bin_source=""
         if [ -f "$dir/build/$name" ]; then
@@ -307,18 +328,35 @@ build_tool() {
             bin_source="$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')"
         fi
         
-        if [ -n "$bin_source" ]; then
+        if [ -n "$bin_source" ] && [ -x "$bin_source" ]; then
             local bin_basename="$(basename "$bin_source")"
             echo "Installing $bin_basename to /usr/local/bin and $TARGET_HOME/.local/bin..."
             sudo install -m 755 "$bin_source" "/usr/local/bin/$bin_basename"
             run_as_target install -m 755 "$bin_source" "$TARGET_HOME/.local/bin/$bin_basename"
+        else
+            echo "ERROR: Compiled executable for $name not found in $dir/build!" >&2
+            exit 1
         fi
+    else
+        echo "ERROR: CMakeLists.txt not found in $dir!" >&2
+        exit 1
     fi
 }
 
 # Public HTTPS clones for universal accessibility
 build_tool "gutterDeck" "https://github.com/aimasri/gutterDeck.git"
 build_tool "gutterTab" "https://github.com/aimasri/gutterTab.git"
+
+# Verify binaries were compiled and installed
+if [ ! -x /usr/local/bin/gutterdeck ] && [ ! -x /usr/local/bin/gutterDeck ]; then
+    echo "ERROR: gutterDeck binary not found in /usr/local/bin!" >&2
+    exit 1
+fi
+if [ ! -x /usr/local/bin/guttertab ] && [ ! -x /usr/local/bin/gutterTab ]; then
+    echo "ERROR: gutterTab binary not found in /usr/local/bin!" >&2
+    exit 1
+fi
+echo "✓ gutterDeck and gutterTab successfully built and installed."
 
 # Ensure both casing variants exist in /usr/local/bin and ~/.local/bin
 echo "Creating binary aliases and compatibility symlinks..."
@@ -524,6 +562,18 @@ else
     echo "  gh auth login"
     echo "----------------------------------------------------------"
 fi
+
+# 11. Prepare network configuration for clean handoff to iwd on reboot
+echo "Preparing network configuration for next boot..."
+if [ -f /etc/network/interfaces ]; then
+    if [ ! -f /etc/network/interfaces.bak ]; then
+        sudo cp /etc/network/interfaces /etc/network/interfaces.bak
+    fi
+    sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp).*/# &/g' /etc/network/interfaces
+    sudo sed -i -E 's/^[[:space:]]*wpa-.*/# &/g' /etc/network/interfaces
+fi
+sudo systemctl disable wpa_supplicant NetworkManager 2>/dev/null || true
+sudo systemctl enable iwd 2>/dev/null || true
 
 sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
 
