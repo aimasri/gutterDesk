@@ -1,4 +1,22 @@
+# Web Server & Reverse Proxy
 apache2
+
+# Relational & In-Memory Databases
 postgresql
 postgresql-contrib
 redis-server
+
+# PHP Runtime & Extensions
+php
+libapache2-mod-php
+php-pgsql
+php-redis
+php-curl
+php-mbstring
+php-xml
+php-gd
+composer
+
+# Local SSL Certificate Tool
+mkcert
+

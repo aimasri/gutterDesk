@@ -2,7 +2,7 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "=== Installing Web Development Stack (Apache2, PostgreSQL, Redis) ==="
+echo "=== Installing Web Development Stack (Apache2, PostgreSQL, Redis, PHP) ==="
 sudo apt-get update
 sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/webstack.list" | tr '\n' ' ')
 
