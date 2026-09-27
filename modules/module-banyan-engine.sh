@@ -176,6 +176,7 @@ setup_wine_and_mt5_runtime() {
     # Ensure wine prefix exists and is initialized
     export WINEPREFIX="$HOME/.wine"
     export WINEDEBUG="-all"
+    export WINEDLLOVERRIDES="mscoree,mshtml="
     if [ ! -d "$WINEPREFIX/drive_c" ]; then
         echo "Initializing WINE prefix at $WINEPREFIX..."
         "$wine_bin" wineboot -u 2>/dev/null || true
@@ -219,10 +220,10 @@ setup_wine_and_mt5_runtime() {
         "$wine_bin" "$py311_exe" "$get_pip" --no-warn-script-location
     fi
 
-    # Verify MetaTrader5 and rpyc are installed in Wine Python
-    if ! "$wine_bin" "$py311_exe" -c "import MetaTrader5, rpyc" 2>/dev/null; then
-        echo "Installing MetaTrader5 and rpyc packages inside Wine Python..."
-        "$wine_bin" "$py311_exe" -m pip install --no-warn-script-location MetaTrader5 rpyc
+    # Verify MetaTrader5, rpyc, and compatible numpy are installed in Wine Python
+    if ! "$wine_bin" "$py311_exe" -c "import MetaTrader5, rpyc, numpy; assert int(numpy.__version__.split('.')[0]) < 2" 2>/dev/null; then
+        echo "Installing MetaTrader5, rpyc, and numpy<2 inside Wine Python..."
+        "$wine_bin" "$py311_exe" -m pip install --no-warn-script-location "numpy<2" MetaTrader5 rpyc
     fi
 
     # 4. Deploy start_server.py (RPyC Bridge) inside C:\Python311\start_server.py
