@@ -35,12 +35,17 @@ sudo mkdir -p /etc/apt/keyrings /usr/share/keyrings
 if [ -f /etc/apt/sources.list ]; then
     sudo sed -i 's/^[[:space:]]*deb cdrom:/# deb cdrom:/g' /etc/apt/sources.list
 fi
+if [ -f /etc/apt/sources.list.d/debian.sources ]; then
+    sudo sed -i 's/URIs:[[:space:]]*cdrom:/Enabled: no\n# URIs: cdrom:/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || true
+fi
 
 # Ensure official Debian online mirrors are configured
 CODENAME=$(grep -oP '^VERSION_CODENAME=\K\w+' /etc/os-release 2>/dev/null || echo "trixie")
-HAS_DEBIAN_MIRROR=$(grep -rhE 'deb\s+http(s)?://deb\.debian\.org/debian' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null || true)
-if [ -z "$HAS_DEBIAN_MIRROR" ] && [ ! -f /etc/apt/sources.list.d/debian.sources ]; then
-    echo "No active deb.debian.org mirror detected. Configuring official $CODENAME repositories..."
+HAS_ONLINE_MIRROR=$(grep -rhE '(deb\s+http(s)?://deb\.debian\.org|URIs:\s*http(s)?://deb\.debian\.org)' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null || true)
+
+if [ -z "$HAS_ONLINE_MIRROR" ]; then
+    echo "No active deb.debian.org mirror detected. Configuring official $CODENAME repositories in /etc/apt/sources.list.d/debian.sources..."
+    [ -f /etc/apt/sources.list.d/debian.sources ] && sudo cp /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list.d/debian.sources.bak 2>/dev/null || true
     sudo tee /etc/apt/sources.list.d/debian.sources >/dev/null << EOF
 Types: deb
 URIs: http://deb.debian.org/debian/
