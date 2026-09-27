@@ -299,20 +299,6 @@ chmod +x "$TARGET_HOME/.local/bin/"* 2>/dev/null || true
 # Ensure all deployed dotfiles and home directory (including .Xauthority) are owned by TARGET_USER
 sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
 
-# Authorize development workstation public key if present
-if [ -f "$SCRIPT_DIR/keys/workstation.pub" ]; then
-    echo "Authorizing development workstation SSH access..."
-    sudo mkdir -p "$TARGET_HOME/.ssh"
-    sudo chmod 700 "$TARGET_HOME/.ssh"
-    sudo touch "$TARGET_HOME/.ssh/authorized_keys"
-    KEY_CONTENT=$(cat "$SCRIPT_DIR/keys/workstation.pub")
-    if ! grep -Fq "$KEY_CONTENT" "$TARGET_HOME/.ssh/authorized_keys" 2>/dev/null; then
-        echo "$KEY_CONTENT" | sudo tee -a "$TARGET_HOME/.ssh/authorized_keys" >/dev/null
-    fi
-    sudo chmod 600 "$TARGET_HOME/.ssh/authorized_keys"
-    sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.ssh"
-fi
-
 # Restore Guake terminal styling & palette
 if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then
     echo "Restoring Guake terminal styling & Twilight palette..."
