@@ -71,4 +71,11 @@ if [ -d "$VHOST_DIR" ] && compgen -G "$VHOST_DIR/*.conf" >/dev/null; then
     echo "  ✓ Apache reloaded with custom virtual hosts."
 fi
 
+# Configure UFW firewall rules for web stack if ufw is installed
+if command -v ufw >/dev/null 2>&1; then
+    echo "Configuring UFW rules for Web Development Stack..."
+    sudo ufw allow 80/tcp comment 'Allow HTTP' || true
+    sudo ufw allow 443/tcp comment 'Allow HTTPS' || true
+fi
+
 echo "Web development stack installation complete."

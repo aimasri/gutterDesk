@@ -368,6 +368,13 @@ EOF
 echo "Enabling user lingering for background autostart on system boot..."
 loginctl enable-linger "$USER" 2>/dev/null || sudo loginctl enable-linger "$USER" 2>/dev/null || true
 
+# Configure UFW firewall rules if ufw is installed
+if command -v ufw >/dev/null 2>&1; then
+    echo "Configuring UFW rules for Banyan Trading Engine..."
+    sudo ufw allow 18813:18814/udp comment 'Allow Banyan Telemetry and Discovery' || true
+    sudo ufw allow 18812/tcp comment 'Allow Banyan Bridge RPyC' || true
+fi
+
 # Reload systemd user daemon and enable headless engine autostart
 echo "Reloading systemd user daemon..."
 systemctl --user daemon-reload
