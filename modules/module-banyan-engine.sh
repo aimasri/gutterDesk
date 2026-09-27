@@ -2,9 +2,14 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "=== Setting up Banyan Trading Engine ==="
-sudo apt-get update
-sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/banyan-engine.list" | tr '\n' ' ')
+if ! command -v xvfb-run >/dev/null 2>&1 || ! command -v notify-send >/dev/null 2>&1; then
+    echo "=== Installing Banyan Engine Host Dependencies ==="
+    sudo apt-get update
+    sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/banyan-engine.list" | tr '\n' ' ')
+else
+    echo "✓ Banyan engine host packages (xvfb, libnotify) already installed."
+fi
+
 
 mkdir -p "$HOME/projects" "$HOME/.config/gutterdesk"
 [ -f "$HOME/.config/gutterdesk/banyan.conf" ] && source "$HOME/.config/gutterdesk/banyan.conf"
@@ -119,10 +124,151 @@ if [ -f "requirements.txt" ]; then
     .venv/bin/pip install -r requirements.txt
 fi
 
-# Ensure run_engine.sh is executable
-if [ -f "$HOME/projects/Banyan/run_engine.sh" ]; then
-    chmod +x "$HOME/projects/Banyan/run_engine.sh"
-fi
+setup_wine_and_mt5_runtime() {
+    echo "=== Verifying Wine, Python 3.11, and MetaTrader 5 Runtime ==="
+    local cache_dir="/var/cache/gutterdesk"
+    if [ ! -w "$cache_dir" ]; then
+        cache_dir="$HOME/.cache/gutterdesk"
+    fi
+    mkdir -p "$cache_dir"
+
+    download_file() {
+        local url="$1"
+        local dest="$2"
+        local label="$3"
+        if [ -f "$dest" ] && [ -s "$dest" ]; then
+            echo "✓ $label archive cached ($dest)."
+            return 0
+        fi
+        echo "Downloading $label..."
+        if command -v curl >/dev/null 2>&1; then
+            curl -fL --progress-bar --retry 3 --retry-delay 2 "$url" -o "$dest.tmp"
+        elif command -v wget >/dev/null 2>&1; then
+            wget -q --show-progress "$url" -O "$dest.tmp"
+        else
+            python3 -c "import urllib.request; urllib.request.urlretrieve('$url', '$dest.tmp')"
+        fi
+        mv "$dest.tmp" "$dest"
+        echo "✓ $label download complete."
+    }
+
+    # 1. Setup Kron4ek Wine 9.0 (amd64) if missing
+    local wine_dir="$HOME/wine-9.0-amd64"
+    local wine_bin="$wine_dir/bin/wine64"
+    if [ ! -x "$wine_bin" ]; then
+        if command -v wine64 >/dev/null 2>&1; then
+            wine_bin="$(command -v wine64)"
+        fi
+    fi
+
+    if [ ! -x "$wine_bin" ]; then
+        echo "Wine 9.0 standalone runtime not found. Installing Kron4ek Wine 9.0 (amd64)..."
+        local wine_url="https://github.com/Kron4ek/Wine-Builds/releases/download/9.0/wine-9.0-amd64.tar.xz"
+        local wine_tar="$cache_dir/wine-9.0-amd64.tar.xz"
+        download_file "$wine_url" "$wine_tar" "Kron4ek Wine 9.0"
+
+        echo "Extracting Wine 9.0 to $HOME/wine-9.0-amd64..."
+        tar -xJf "$wine_tar" -C "$HOME"
+        wine_bin="$HOME/wine-9.0-amd64/bin/wine64"
+    fi
+    echo "✓ Wine executable: $wine_bin"
+
+    # Ensure wine prefix exists and is initialized
+    export WINEPREFIX="$HOME/.wine"
+    export WINEDEBUG="-all"
+    if [ ! -d "$WINEPREFIX/drive_c" ]; then
+        echo "Initializing WINE prefix at $WINEPREFIX..."
+        "$wine_bin" wineboot -u 2>/dev/null || true
+    fi
+
+    # 2. Setup Windows Python 3.11 embeddable inside Wine
+    local py311_dir="$WINEPREFIX/drive_c/Python311"
+    local py311_exe="$py311_dir/python.exe"
+    if [ ! -f "$py311_exe" ]; then
+        echo "Windows Python 3.11 embeddable runtime not found in Wine prefix."
+        echo "Installing Python 3.11.8 embeddable into $py311_dir..."
+        local py_url="https://www.python.org/ftp/python/3.11.8/python-3.11.8-embed-amd64.zip"
+        local py_zip="$cache_dir/python-3.11.8-embed-amd64.zip"
+        download_file "$py_url" "$py_zip" "Python 3.11 Embeddable (Windows)"
+
+        mkdir -p "$py311_dir"
+        unzip -q -o "$py_zip" -d "$py311_dir"
+
+        # Enable site-packages in python311._pth by uncommenting 'import site'
+        local pth_file="$py311_dir/python311._pth"
+        if [ -f "$pth_file" ]; then
+            sed -i 's/^#import site/import site/' "$pth_file"
+            if ! grep -q '^import site' "$pth_file"; then
+                echo "import site" >> "$pth_file"
+            fi
+        fi
+    fi
+
+    # 3. Bootstrap pip and packages in Wine Python if pip or MetaTrader5 missing
+    if [ ! -f "$py311_dir/Scripts/pip.exe" ] && [ ! -d "$py311_dir/Lib/site-packages/pip" ]; then
+        echo "Bootstrapping pip inside Wine Python..."
+        local pip_url="https://bootstrap.pypa.io/get-pip.py"
+        local get_pip="$cache_dir/get-pip.py"
+        download_file "$pip_url" "$get_pip" "Pip Bootstrap"
+
+        "$wine_bin" "$py311_exe" "$get_pip" --no-warn-script-location
+    fi
+
+    # Verify MetaTrader5 and rpyc are installed in Wine Python
+    if ! "$wine_bin" "$py311_exe" -c "import MetaTrader5, rpyc" 2>/dev/null; then
+        echo "Installing MetaTrader5 and rpyc packages inside Wine Python..."
+        "$wine_bin" "$py311_exe" -m pip install --no-warn-script-location MetaTrader5 rpyc
+    fi
+
+    # 4. Deploy start_server.py (RPyC Bridge) inside C:\Python311\start_server.py
+    local bridge_script="$py311_dir/start_server.py"
+    if [ ! -f "$bridge_script" ]; then
+        echo "Deploying RPyC bridge server to $bridge_script..."
+        cat << 'PYEOF' > "$bridge_script"
+from rpyc.utils.server import ThreadedServer
+from rpyc.core.service import SlaveService
+if __name__ == "__main__":
+    print("Starting RPyC server on port 18812...")
+    server = ThreadedServer(SlaveService, port=18812, reuse_addr=True, protocol_config={"allow_public_attrs": True, "allow_all_attrs": True})
+    server.start()
+PYEOF
+    fi
+
+    # 5. Verify or Install MetaTrader 5
+    local mt5_exe="$WINEPREFIX/drive_c/Program Files/MetaTrader 5/terminal64.exe"
+    if [ ! -f "$mt5_exe" ]; then
+        echo "MetaTrader 5 terminal not found at $mt5_exe."
+        echo "Downloading official MetaTrader 5 setup..."
+        local mt5_url="https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
+        local mt5_installer="$cache_dir/mt5setup.exe"
+        download_file "$mt5_url" "$mt5_installer" "MetaTrader 5 Setup"
+
+        echo "Running MetaTrader 5 silent installation (this may take 1-2 minutes)..."
+        "$wine_bin" "$mt5_installer" /auto 2>/dev/null &
+        local installer_pid=$!
+
+        # Wait up to 60 seconds for terminal64.exe to appear
+        local count=0
+        while [ ! -f "$mt5_exe" ] && [ $count -lt 30 ]; do
+            sleep 2
+            count=$((count + 1))
+        done
+
+        # Clean up wine installer processes
+        kill "$installer_pid" 2>/dev/null || true
+        "$wine_dir/bin/wineserver" -k 2>/dev/null || wineserver -k 2>/dev/null || true
+    fi
+
+    if [ -f "$mt5_exe" ]; then
+        echo "✓ MetaTrader 5 terminal verified: $mt5_exe"
+    else
+        echo "Notice: MetaTrader 5 automated installation finished. If terminal64.exe is missing,"
+        echo "run 'wine $cache_dir/mt5setup.exe' interactively or copy from backup."
+    fi
+}
+
+# Run runtime setup for Wine, MT5 and Windows Python bridge
+setup_wine_and_mt5_runtime
 
 echo "=== Installing Banyan Engine Systemd User Services ==="
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"

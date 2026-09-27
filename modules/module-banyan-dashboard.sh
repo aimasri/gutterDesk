@@ -16,9 +16,14 @@ if [ ! -d "$HOME/projects/Banyan/desktop" ]; then
     exit 1
 fi
 
-echo "=== Installing Banyan Dashboard Build Dependencies ==="
-sudo apt-get update
-sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/banyan-dashboard.list" | tr '\n' ' ')
+if ! command -v cmake >/dev/null 2>&1 || ! pkg-config --exists Qt6Core 2>/dev/null; then
+    echo "=== Installing Banyan Dashboard Build Dependencies ==="
+    sudo apt-get update
+    sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/banyan-dashboard.list" | tr '\n' ' ')
+else
+    echo "✓ Build toolchain and Qt6 dependencies already installed."
+fi
+
 
 echo "=== Compiling Banyan Desktop UI & Tray Daemon ==="
 mkdir -p "$HOME/projects/Banyan/desktop/build"
