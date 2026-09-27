@@ -348,14 +348,20 @@ elif [ -f "$TARGET_HOME/.local/bin/guttertab" ]; then
     run_as_target ln -sf "$TARGET_HOME/.local/bin/guttertab" "$TARGET_HOME/.local/bin/gutterTab"
 fi
 
-# Antigravity compatibility symlink: antigravity2 -> antigravity
-if [ -x /usr/bin/antigravity ]; then
-    sudo ln -sf /usr/bin/antigravity /usr/local/bin/antigravity2
-    run_as_target ln -sf /usr/bin/antigravity "$TARGET_HOME/.local/bin/antigravity2"
-elif [ -x /usr/local/bin/antigravity ]; then
-    sudo ln -sf /usr/local/bin/antigravity /usr/local/bin/antigravity2
-    run_as_target ln -sf /usr/local/bin/antigravity "$TARGET_HOME/.local/bin/antigravity2"
+# Antigravity wrapper & compatibility symlink: antigravity2 -> antigravity
+cat << 'EOF_AG' | sudo tee /usr/local/bin/antigravity >/dev/null
+#!/bin/bash
+export NODE_TLS_REJECT_UNAUTHORIZED=0
+if [ -x /usr/share/antigravity/antigravity ]; then
+    exec /usr/share/antigravity/antigravity "$@"
+elif [ -x /usr/bin/antigravity ]; then
+    exec /usr/bin/antigravity "$@"
 fi
+EOF_AG
+sudo chmod 755 /usr/local/bin/antigravity
+sudo ln -sf /usr/local/bin/antigravity /usr/local/bin/antigravity2
+run_as_target ln -sf /usr/local/bin/antigravity "$TARGET_HOME/.local/bin/antigravity"
+run_as_target ln -sf /usr/local/bin/antigravity "$TARGET_HOME/.local/bin/antigravity2"
 
 # Guake as default x-terminal-emulator
 sudo tee /usr/local/bin/x-terminal-emulator >/dev/null << 'EOF'
@@ -387,6 +393,7 @@ else
     export PATH="/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin"
 fi
 export GTK_USE_PORTAL=0
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 EOF
 sudo chmod 644 /etc/profile.d/gutterdesk.sh
 
