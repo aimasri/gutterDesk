@@ -426,12 +426,19 @@ EOF
 fi
 
 # 10. GitHub Authentication Status Check
-echo "[9/9] Checking GitHub SSH authentication status..."
-if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
-    echo "✓ GitHub SSH authentication verified."
+echo "[9/9] Checking GitHub SSH authentication status for $TARGET_USER..."
+GH_AUTH=$(run_as_target ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T git@github.com 2>&1 || true)
+GH_USER=$(echo "$GH_AUTH" | grep -oP 'Hi \K[^!]+' || true)
+
+if [ "$GH_USER" = "aimasri" ]; then
+    echo "✓ GitHub SSH authentication verified for aimasri."
+elif [ -n "$GH_USER" ]; then
+    echo "----------------------------------------------------------"
+    echo "Notice: GitHub authenticated as '$GH_USER', expected 'aimasri'."
+    echo "----------------------------------------------------------"
 else
     echo "----------------------------------------------------------"
-    echo "Notice: GitHub SSH authentication is not yet configured."
+    echo "Notice: GitHub SSH authentication is not yet configured for $TARGET_USER."
     echo "To authenticate your GitHub account on this machine, run:"
     echo "  gh auth login"
     echo "----------------------------------------------------------"

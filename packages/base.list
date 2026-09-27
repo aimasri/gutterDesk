@@ -44,7 +44,6 @@ catfish
 htop
 light-locker
 whiptail
-zenity
 dconf-cli
 xsettingsd
 lxpolkit

@@ -10,6 +10,12 @@ if [ ! -d "$HOME/projects/Banyan/.git" ]; then
     "$SCRIPT_DIR/modules/module-banyan-engine.sh"
 fi
 
+if [ ! -d "$HOME/projects/Banyan/desktop" ]; then
+    echo "Error: Banyan desktop directory not found at $HOME/projects/Banyan/desktop."
+    echo "Please ensure the Banyan repository was cloned properly."
+    exit 1
+fi
+
 mkdir -p "$HOME/projects/Banyan/desktop/build"
 cd "$HOME/projects/Banyan/desktop/build"
 cmake .. -DCMAKE_BUILD_TYPE=Release
