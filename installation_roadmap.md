@@ -113,22 +113,31 @@ Press `Space` to select modules and `Enter` to install.
 
 ## 5. Restoring Private Profiles & Identity Keys
 
-To restore personal notes, dock profiles, and multi-account SSH keys from your private backup archive:
+To restore personal notes, dock profiles, multi-account SSH keys, and project environments:
 
 ```bash
 # 1. Extract archive to ~/projects/
 tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/projects/
-
-# 2. Run the automated restore script
 cd ~/projects/gutterdesk-private-backup
-./restore-private-profile.sh
+
+# 2. Stage 1: Connect machine identity, SSH keys, Antigravity, and MT5 config (Run before cloning)
+./1-connect-identity.sh
+
+# 3. Stage 2: Sync project .env credentials (Run after cloning your projects into ~/projects/)
+./2-sync-environments.sh
+
+# (Or run ./restore-all.sh to execute both stages sequentially)
 ```
 
 ### What is Restored:
-* **SSH Keys:** Restores `id_ed25519`, `github_fussybaby`, `github_urbansugar`, `id_ed25519_vps`, and sets `600`/`700` permissions.
-* **gutterDeck:** Restores all personal dock launcher profiles (`default`, `creative`, `entertainment`, etc.).
-* **gutterTab:** Restores SQLite `notes.db` with personal notes, bookmarks, and drawer settings.
-* **Wallpapers:** Restores personal wallpaper library to `~/images/wallpapers/`.
+* **Stage 1 (Identity & System):**
+  * **SSH Keys:** Restores `id_ed25519`, `github_fussybaby`, `github_urbansugar`, `id_ed25519_vps`, with secure `600`/`700` permissions.
+  * **Antigravity Profile:** Restores custom skills, learned knowledge, directives, and MCP tools.
+  * **gutterDeck & gutterTab:** Restores dock profiles and SQLite `notes.db` personal notes.
+  * **MetaTrader 5 Config:** Restores saved broker servers, demo/live accounts, and terminal settings.
+  * **Wallpapers:** Restores personal wallpaper library to `~/images/wallpapers/`.
+* **Stage 2 (Project Environments):**
+  * **Environment Secrets:** Injects `.env` and `infrastructure.env` files into cloned repositories (`Urban Sugar`, `FussyBaby`, `BeautyVault`, `Magma`). Fully idempotent.
 
 ---
 
