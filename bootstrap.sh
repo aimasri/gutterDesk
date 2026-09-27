@@ -430,8 +430,9 @@ if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
     echo "✓ GitHub SSH authentication verified."
 else
     echo "----------------------------------------------------------"
-    echo "! Action Required: GitHub SSH keys are not yet configured."
-    echo "  Run 'gh auth login' or launch the Banyan module to authenticate directly."
+    echo "Notice: GitHub SSH authentication is not yet configured."
+    echo "To authenticate your GitHub account on this machine, run:"
+    echo "  gh auth login"
     echo "----------------------------------------------------------"
 fi
 
