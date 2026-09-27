@@ -38,10 +38,6 @@ if which guake >/dev/null 2>&1; then
     ([ -f ~/.config/guake/guake-preferences.ini ] && which dconf >/dev/null 2>&1 && dconf load /org/guake/ < ~/.config/guake/guake-preferences.ini 2>/dev/null; guake) &
 fi
 
-## 5. Start gutterDeck and gutterTab (delayed 2s for panel/compositor stability)
-which gutterdeck >/dev/null 2>&1 && (sleep 2s && gutterdeck) &
-which gutterTab >/dev/null 2>&1 && (sleep 2s && gutterTab) &
-
 
 ## 6. Volume keys and systray icon
 which volumeicon >/dev/null 2>&1 && (volumeicon &)
