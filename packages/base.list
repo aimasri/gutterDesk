@@ -48,6 +48,12 @@ dconf-cli
 xsettingsd
 lxpolkit
 xfce4-notifyd
+ca-certificates
+systemd-timesyncd
+gnome-keyring
+libpam-gnome-keyring
+ripgrep
+fd-find
 
 # Bluetooth
 bluez

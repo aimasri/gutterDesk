@@ -127,6 +127,7 @@ fi
 sudo systemctl enable lightdm 2>/dev/null || true
 sudo systemctl enable bluetooth 2>/dev/null || true
 sudo systemctl enable ssh 2>/dev/null || true
+sudo systemctl enable --now systemd-timesyncd 2>/dev/null || true
 
 
 # Configure modern lightweight wireless stack (iwd)
