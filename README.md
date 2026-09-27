@@ -96,8 +96,9 @@ gutterDesk/
 | `Alt + F2` | Run Program dialog (`gmrun`) |
 | `Super + Space` | Open root desktop menu |
 | `Super + x` | Session &amp; Power menu (Log Out, Reboot, Power Off) |
-| `Super + e` | Open PCManFM file manager |
-| `PrintScreen` | Take interactive screenshot (`scrot -s`) |
+| `PrintScreen` | Full screen screenshot (`scrot`) |
+| `Alt + PrintScreen` | Active window screenshot (`scrot -u`) |
+| `Shift + PrintScreen` | Interactive select area (`scrot -s`) |
 
 ---
 

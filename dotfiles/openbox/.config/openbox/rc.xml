@@ -264,14 +264,20 @@
     </keybind>
     <keybind key="Print">
       <action name="Execute">
-        <command>xfce4-screenshooter</command>
+        <command>scrot '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</command>
       </action>
     </keybind>
     <keybind key="A-Print">
       <action name="Execute">
-        <command>scrot '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mv $f ~/images/ &amp; viewnior ~/images/$f'</command>
+        <command>scrot -u '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</command>
       </action>
     </keybind>
+    <keybind key="S-Print">
+      <action name="Execute">
+        <command>scrot -s '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</command>
+      </action>
+    </keybind>
+
     <!-- Keybindings for window switching -->
     <keybind key="A-Tab">
       <action name="NextWindow">
