@@ -31,10 +31,8 @@ run_as_target() {
 echo "[1/8] Configuring third-party repositories..."
 sudo mkdir -p /etc/apt/keyrings /usr/share/keyrings
 
-if [ -f "$SCRIPT_DIR/keys/antigravity-repo-key.gpg" ]; then
-    sudo install -m 0644 "$SCRIPT_DIR/keys/antigravity-repo-key.gpg" /etc/apt/keyrings/antigravity-repo-key.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | sudo tee /etc/apt/sources.list.d/antigravity.list >/dev/null
-fi
+# Remove obsolete/abandoned antigravity APT list if present
+sudo rm -f /etc/apt/sources.list.d/antigravity.list
 
 if [ -f "$SCRIPT_DIR/keys/google-chrome.gpg" ]; then
     sudo install -m 0644 "$SCRIPT_DIR/keys/google-chrome.gpg" /usr/share/keyrings/google-chrome.gpg
@@ -348,20 +346,97 @@ elif [ -f "$TARGET_HOME/.local/bin/guttertab" ]; then
     run_as_target ln -sf "$TARGET_HOME/.local/bin/guttertab" "$TARGET_HOME/.local/bin/gutterTab"
 fi
 
-# Antigravity wrapper & compatibility symlink: antigravity2 -> antigravity
-cat << 'EOF_AG' | sudo tee /usr/local/bin/antigravity >/dev/null
-#!/bin/bash
-export NODE_TLS_REJECT_UNAUTHORIZED=0
-if [ -x /usr/share/antigravity/antigravity ]; then
-    exec /usr/share/antigravity/antigravity "$@"
-elif [ -x /usr/bin/antigravity ]; then
-    exec /usr/bin/antigravity "$@"
+# 8. Install Official Google Antigravity Suite (IDE & Agents Manager)
+echo "[8/9] Deploying Google Antigravity Suite..."
+CACHE_DIR="/var/cache/gutterdesk"
+sudo mkdir -p "$CACHE_DIR" /usr/share/antigravity /opt/Antigravity2 /usr/local/bin
+
+download_archive() {
+    local url="$1"
+    local dest="$2"
+    local label="$3"
+    
+    if [ -f "$dest" ] && [ -s "$dest" ]; then
+        echo "✓ $label archive cached ($dest)."
+        return 0
+    fi
+    
+    echo "Downloading $label from official Google repository..."
+    if which curl >/dev/null 2>&1; then
+        sudo curl -fL --progress-bar --retry 3 --retry-delay 2 "$url" -o "$dest.tmp"
+    elif which wget >/dev/null 2>&1; then
+        sudo wget -q --show-progress "$url" -O "$dest.tmp"
+    fi
+    sudo mv "$dest.tmp" "$dest"
+    echo "✓ $label download complete."
+}
+
+# A. Antigravity IDE (VS Code based agentic editor)
+IDE_URL="https://dl.google.com/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-x64/Antigravity%20IDE.tar.gz"
+IDE_TAR="$CACHE_DIR/Antigravity_IDE.tar.gz"
+download_archive "$IDE_URL" "$IDE_TAR" "Antigravity IDE"
+
+if [ ! -f /usr/share/antigravity/antigravity-ide ]; then
+    echo "Installing Antigravity IDE into /usr/share/antigravity..."
+    sudo rm -rf /usr/share/antigravity/* 2>/dev/null || true
+    sudo tar -xzf "$IDE_TAR" -C /usr/share/antigravity --strip-components=1
+    sudo chown root:root /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
+    sudo chmod 4755 /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
 fi
-EOF_AG
-sudo chmod 755 /usr/local/bin/antigravity
-sudo ln -sf /usr/local/bin/antigravity /usr/local/bin/antigravity2
-run_as_target ln -sf /usr/local/bin/antigravity "$TARGET_HOME/.local/bin/antigravity"
-run_as_target ln -sf /usr/local/bin/antigravity "$TARGET_HOME/.local/bin/antigravity2"
+sudo ln -sf /usr/share/antigravity/antigravity-ide /usr/bin/antigravity
+sudo ln -sf /usr/share/antigravity/antigravity-ide /usr/local/bin/antigravity
+run_as_target ln -sf /usr/bin/antigravity "$TARGET_HOME/.local/bin/antigravity"
+
+# B. Antigravity 2.0 (Standalone Multi-Agent Platform & Agents Manager)
+HUB_URL="https://storage.googleapis.com/antigravity-public/antigravity-hub/2.17.0-5217732355031040/linux-x64/Antigravity.tar.gz"
+HUB_TAR="$CACHE_DIR/Antigravity_Hub.tar.gz"
+download_archive "$HUB_URL" "$HUB_TAR" "Antigravity Agents Manager"
+
+if [ ! -f /opt/Antigravity2/antigravity ]; then
+    echo "Installing Antigravity 2.0 Agents Manager into /opt/Antigravity2..."
+    sudo rm -rf /opt/Antigravity2/* 2>/dev/null || true
+    sudo tar -xzf "$HUB_TAR" -C /opt/Antigravity2 --strip-components=1
+    sudo chown root:root /opt/Antigravity2/chrome-sandbox 2>/dev/null || true
+    sudo chmod 4755 /opt/Antigravity2/chrome-sandbox 2>/dev/null || true
+fi
+sudo ln -sf /opt/Antigravity2/antigravity /usr/local/bin/antigravity2
+run_as_target ln -sf /usr/local/bin/antigravity2 "$TARGET_HOME/.local/bin/antigravity2"
+
+# C. Desktop & Icon Integration
+sudo mkdir -p /usr/share/applications /usr/share/pixmaps
+if [ -f "$SCRIPT_DIR/assets/icons/antigravity.png" ]; then
+    sudo cp "$SCRIPT_DIR/assets/icons/antigravity.png" /usr/share/pixmaps/antigravity.png
+elif [ -f /usr/share/antigravity/resources/app/resources/linux/code.png ]; then
+    sudo cp /usr/share/antigravity/resources/app/resources/linux/code.png /usr/share/pixmaps/antigravity.png
+fi
+
+sudo tee /usr/share/applications/antigravity.desktop >/dev/null << 'EOF_DESK'
+[Desktop Entry]
+Name=Antigravity IDE
+Comment=Experience liftoff - AI-First Code Editor
+GenericName=Text Editor
+Exec=/usr/bin/antigravity %F
+Icon=antigravity
+Type=Application
+StartupNotify=true
+StartupWMClass=Antigravity
+Categories=TextEditor;Development;IDE;
+MimeType=application/x-antigravity-workspace;
+EOF_DESK
+
+sudo tee /usr/share/applications/antigravity2.desktop >/dev/null << 'EOF_DESK2'
+[Desktop Entry]
+Name=Antigravity Agents Manager
+Comment=Google Antigravity 2.0 Multi-Agent Orchestration Platform
+GenericName=Agent Workspace Manager
+Exec=/usr/local/bin/antigravity2 %U
+Icon=antigravity
+Type=Application
+StartupNotify=true
+StartupWMClass=Antigravity
+Categories=Development;Utility;
+EOF_DESK2
+sudo update-desktop-database /usr/share/applications 2>/dev/null || true
 
 # Guake as default x-terminal-emulator
 sudo tee /usr/local/bin/x-terminal-emulator >/dev/null << 'EOF'
@@ -374,7 +449,6 @@ fi
 EOF
 sudo chmod 755 /usr/local/bin/x-terminal-emulator
 run_as_target ln -sf /usr/local/bin/x-terminal-emulator "$TARGET_HOME/.local/bin/x-terminal-emulator"
-
 
 # Install /etc/profile.d/gutterdesk.sh for system-wide PATH configuration
 echo "Configuring system-wide environment PATH in /etc/profile.d/gutterdesk.sh..."
@@ -393,7 +467,6 @@ else
     export PATH="/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin"
 fi
 export GTK_USE_PORTAL=0
-export NODE_TLS_REJECT_UNAUTHORIZED=0
 EOF
 sudo chmod 644 /etc/profile.d/gutterdesk.sh
 
