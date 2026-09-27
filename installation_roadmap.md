@@ -132,12 +132,16 @@ cd ~/projects/gutterdesk-private-backup
 ### What is Restored:
 * **Stage 1 (Identity & System):**
   * **SSH Keys:** Restores `id_ed25519`, `github_fussybaby`, `github_urbansugar`, `id_ed25519_vps`, with secure `600`/`700` permissions.
+  * **Webstack Configuration:** Restores `~/.config/gutterdesk/hosts`, `~/.config/gutterdesk/vhosts/*.conf`, and repository manifest (`webstack_repos.conf`).
+  * **Banyan Engine Profiles:** Restores `~/.config/banyan/engines.json` with clean symmetric LAN discovery profiles.
   * **Antigravity Profile:** Restores custom skills, learned knowledge, directives, and MCP tools.
   * **gutterDeck & gutterTab:** Restores dock profiles and SQLite `notes.db` personal notes.
   * **MetaTrader 5 Config:** Restores saved broker servers, demo/live accounts, and terminal settings.
   * **Wallpapers:** Restores personal wallpaper library to `~/images/wallpapers/`.
 * **Stage 2 (Project Environments):**
   * **Environment Secrets:** Injects `.env` and `infrastructure.env` files into cloned repositories (`Urban Sugar`, `FussyBaby`, `BeautyVault`, `Magma`). Fully idempotent.
+  * **Apache Vhost Sync:** Activates and reloads custom Apache virtual hosts for cloned web projects.
+  * **Banyan Service Reload:** Automatically restarts active Banyan trading engine service to apply injected credentials.
 
 ---
 
