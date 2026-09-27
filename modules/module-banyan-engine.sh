@@ -240,13 +240,22 @@ PYEOF
     fi
 
     # 5. Verify or Install MetaTrader 5
-    local mt5_exe="$WINEPREFIX/drive_c/Program Files/MetaTrader 5/terminal64.exe"
+    local mt5_dir="$WINEPREFIX/drive_c/Program Files/MetaTrader 5"
+    local mt5_exe="$mt5_dir/terminal64.exe"
+    local mt5_config="$mt5_dir/Config"
     if [ ! -f "$mt5_exe" ]; then
         echo "MetaTrader 5 terminal not found at $mt5_exe."
         echo "Downloading official MetaTrader 5 setup..."
         local mt5_url="https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
         local mt5_installer="$cache_dir/mt5setup.exe"
         download_file "$mt5_url" "$mt5_installer" "MetaTrader 5 Setup"
+
+        # Backup existing config if present before installer runs
+        local config_backup=""
+        if [ -d "$mt5_config" ] && [ -f "$mt5_config/accounts.dat" ]; then
+            config_backup="$(mktemp -d)"
+            cp -a "$mt5_config/"* "$config_backup/"
+        fi
 
         echo "Running MetaTrader 5 silent installation (this may take 1-2 minutes)..."
         "$wine_bin" "$mt5_installer" /auto 2>/dev/null &
@@ -262,6 +271,23 @@ PYEOF
         # Clean up wine installer processes
         kill "$installer_pid" 2>/dev/null || true
         "$wine_dir/bin/wineserver" -k 2>/dev/null || wineserver -k 2>/dev/null || true
+
+        # Restore backed-up config if preserved
+        if [ -n "$config_backup" ] && [ -d "$config_backup" ]; then
+            echo "Restoring pre-existing MT5 broker configuration..."
+            mkdir -p "$mt5_config"
+            cp -a "$config_backup/"* "$mt5_config/"
+            rm -rf "$config_backup"
+        fi
+    fi
+
+    # Auto-hydrate broker credentials from private backup if available and missing
+    if [ -f "$mt5_exe" ] && [ ! -f "$mt5_config/accounts.dat" ]; then
+        if [ -d "$HOME/projects/gutterdesk-private-backup/mt5/Config" ]; then
+            echo "Hydrating MetaTrader 5 broker profile from private backup..."
+            mkdir -p "$mt5_config"
+            cp -a "$HOME/projects/gutterdesk-private-backup/mt5/Config/"* "$mt5_config/"
+        fi
     fi
 
     if [ -f "$mt5_exe" ]; then
