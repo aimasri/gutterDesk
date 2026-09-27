@@ -36,4 +36,39 @@ else
     echo "------------------------------------------------------------------"
 fi
 
+# Ensure traversal permissions on user home directory so Apache www-data can serve projects
+chmod o+x "$HOME"
+
+# Sync custom local domain mappings from ~/.config/gutterdesk/hosts if present
+HOSTS_CONF="$HOME/.config/gutterdesk/hosts"
+if [ -f "$HOSTS_CONF" ]; then
+    echo "=== Syncing Local Development Domains from $HOSTS_CONF ==="
+    while IFS= read -r line || [ -n "$line" ]; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        domain=$(echo "$line" | awk '{print $2}')
+        if [ -n "$domain" ]; then
+            if ! grep -qw "$domain" /etc/hosts; then
+                echo "$line" | sudo tee -a /etc/hosts >/dev/null
+                echo "  ✓ Added $domain to /etc/hosts"
+            else
+                echo "  ✓ $domain already present in /etc/hosts"
+            fi
+        fi
+    done < "$HOSTS_CONF"
+fi
+
+# Deploy and enable custom Apache virtual hosts from ~/.config/gutterdesk/vhosts if present
+VHOST_DIR="$HOME/.config/gutterdesk/vhosts"
+if [ -d "$VHOST_DIR" ] && compgen -G "$VHOST_DIR/*.conf" >/dev/null; then
+    echo "=== Deploying Custom Apache Virtual Hosts from $VHOST_DIR ==="
+    sudo cp "$VHOST_DIR"/*.conf /etc/apache2/sites-available/
+    for conf in "$VHOST_DIR"/*.conf; do
+        site_name=$(basename "$conf")
+        sudo a2ensite -q "$site_name"
+        echo "  ✓ Enabled $site_name"
+    done
+    sudo systemctl reload apache2
+    echo "  ✓ Apache reloaded with custom virtual hosts."
+fi
+
 echo "Web development stack installation complete."
