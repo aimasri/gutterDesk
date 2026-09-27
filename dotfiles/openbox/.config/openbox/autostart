@@ -63,3 +63,7 @@ xset b off &
 for notifyd in /usr/lib/*/xfce4/notifyd/xfce4-notifyd /usr/lib/xfce4-notifyd/xfce4-notifyd; do
     [ -x "$notifyd" ] && "$notifyd" &
 done
+
+## 12. First-boot modular installer prompt
+[ -x ~/.local/bin/gutterdesk-first-run.sh ] && (~/.local/bin/gutterdesk-first-run.sh &)
+

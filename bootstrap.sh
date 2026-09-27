@@ -263,6 +263,7 @@ fi
 
 # Ensure helper scripts have execute permissions
 chmod +x "$TARGET_HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
+chmod +x "$TARGET_HOME/.local/bin/gutterdesk-first-run.sh" 2>/dev/null || true
 chmod +x "$TARGET_HOME/.config/openbox/autostart" 2>/dev/null || true
 
 # 7. Set Default Applications
