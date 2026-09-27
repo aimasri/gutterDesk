@@ -28,8 +28,33 @@ run_as_target() {
 }
 
 # 2. Install repository keys & sources
-echo "[1/8] Configuring third-party repositories..."
+echo "[1/8] Configuring system repositories..."
 sudo mkdir -p /etc/apt/keyrings /usr/share/keyrings
+
+# Disable CD-ROM / USB netinst sources that block online package fetching
+if [ -f /etc/apt/sources.list ]; then
+    sudo sed -i 's/^[[:space:]]*deb cdrom:/# deb cdrom:/g' /etc/apt/sources.list
+fi
+
+# Ensure official Debian online mirrors are configured
+CODENAME=$(grep -oP '^VERSION_CODENAME=\K\w+' /etc/os-release 2>/dev/null || echo "trixie")
+HAS_DEBIAN_MIRROR=$(grep -rhE 'deb\s+http(s)?://deb\.debian\.org/debian' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null || true)
+if [ -z "$HAS_DEBIAN_MIRROR" ] && [ ! -f /etc/apt/sources.list.d/debian.sources ]; then
+    echo "No active deb.debian.org mirror detected. Configuring official $CODENAME repositories..."
+    sudo tee /etc/apt/sources.list.d/debian.sources >/dev/null << EOF
+Types: deb
+URIs: http://deb.debian.org/debian/
+Suites: $CODENAME $CODENAME-updates
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: http://security.debian.org/debian-security/
+Suites: $CODENAME-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
+fi
 
 # Remove obsolete/abandoned antigravity APT list if present
 sudo rm -f /etc/apt/sources.list.d/antigravity.list
@@ -42,7 +67,20 @@ fi
 # 3. Update APT and install Universal Base packages
 echo "[2/8] Installing Universal Base packages..."
 sudo apt-get update
-sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/base.list" | tr '\n' ' ')
+
+PACKAGES_TO_INSTALL=()
+for pkg in $(grep -v '^#' "$SCRIPT_DIR/packages/base.list" | tr '\n' ' '); do
+    if apt-cache show "$pkg" >/dev/null 2>&1; then
+        PACKAGES_TO_INSTALL+=("$pkg")
+    elif [ "$pkg" = "nitrogen" ]; then
+        echo "Notice: Package 'nitrogen' not found in active repositories; falling back to 'feh'..."
+        PACKAGES_TO_INSTALL+=("feh")
+    else
+        echo "Notice: Package '$pkg' not found in active repositories, skipping..."
+    fi
+done
+
+sudo apt-get install -y "${PACKAGES_TO_INSTALL[@]}"
 
 # Remove redundant google-chrome.list if the package created google-chrome.sources (avoids duplicate warnings)
 if [ -f /etc/apt/sources.list.d/google-chrome.sources ] && [ -f /etc/apt/sources.list.d/google-chrome.list ]; then
