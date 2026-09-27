@@ -1,4 +1,5 @@
 wine64
 xvfb
 libnotify-bin
+unzip
 

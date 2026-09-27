@@ -2,12 +2,12 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-if ! command -v xvfb-run >/dev/null 2>&1 || ! command -v notify-send >/dev/null 2>&1; then
+if ! command -v xvfb-run >/dev/null 2>&1 || ! command -v notify-send >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
     echo "=== Installing Banyan Engine Host Dependencies ==="
     sudo apt-get update
     sudo apt-get install -y $(grep -v '^#' "$SCRIPT_DIR/packages/banyan-engine.list" | tr '\n' ' ')
 else
-    echo "✓ Banyan engine host packages (xvfb, libnotify) already installed."
+    echo "✓ Banyan engine host packages (xvfb, libnotify, unzip) already installed."
 fi
 
 
@@ -192,7 +192,12 @@ setup_wine_and_mt5_runtime() {
         download_file "$py_url" "$py_zip" "Python 3.11 Embeddable (Windows)"
 
         mkdir -p "$py311_dir"
-        unzip -q -o "$py_zip" -d "$py311_dir"
+        if command -v unzip >/dev/null 2>&1; then
+            unzip -q -o "$py_zip" -d "$py311_dir"
+        else
+            echo "Notice: unzip command not found; extracting with Python zipfile..."
+            python3 -c "import zipfile; zipfile.ZipFile('$py_zip').extractall('$py311_dir')"
+        fi
 
         # Enable site-packages in python311._pth by uncommenting 'import site'
         local pth_file="$py311_dir/python311._pth"
