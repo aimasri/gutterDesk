@@ -40,7 +40,7 @@ Activate only the modules required for the target machine:
 
 * **[ ] Module 2: Banyan Trading Engine (`modules/module-banyan-engine.sh`)**
   * *Purpose:* Quantitative algorithmic trading backend.
-  * *Includes:* Wine64, Python 3 virtual environment, pandas, numpy, pytz, mt5linux. Configurable repository URL via `~/.config/gutterdesk/banyan.conf`.
+  * *Includes:* Standalone 64-bit Wine 9.0, automated MetaTrader 5 terminal provisioning, Windows Python 3.11 embeddable runtime (with `MetaTrader5` & `rpyc` bridge server on port 18812), host Linux virtual environment, and systemd headless user service (`banyan-engine-headless.service`) running under `xvfb-run`.
 
 * **[ ] Module 3: Banyan Trading Dashboard (`modules/module-banyan-dashboard.sh`)**
   * *Purpose:* C++/Qt6 desktop network telemetry dashboard.
@@ -67,7 +67,7 @@ Activate only the modules required for the target machine:
 
 ---
 
-## 4. Design Exclusions (Global Bloat Removed)
+## 5. Design Exclusions (Global Bloat Removed)
 *Explicitly omitted from the Universal Base to preserve minimal resource usage (<400MB idle RAM):*
 * Desktop environments (GNOME, KDE, XFCE)
 * Heavy file managers (Thunar, Nautilus) -> Replaced with PCManFM

@@ -41,11 +41,24 @@ sudo ./bootstrap.sh
 sudo reboot
 ```
 
-### 3. Enable Functional Modules (Optional)
-Once booted into the graphical desktop, launch the module installer:
+### 3. Connect Machine Identity & Private Profiles (Optional)
+If migrating from a backup, extract your private profile and connect your SSH keys and desktop state:
+```bash
+tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/projects/
+cd ~/projects/gutterdesk-private-backup && ./1-connect-identity.sh
+```
+
+### 4. Enable Functional Modules (Optional)
+Once booted into the graphical desktop, launch the interactive module installer:
 ```bash
 cd ~/projects/gutterDesk
 ./install.sh
+```
+
+### 5. Hydrate Cloned Projects (Optional)
+Once you clone your repositories into `~/projects/`, inject their environment credentials:
+```bash
+cd ~/projects/gutterdesk-private-backup && ./2-sync-environments.sh
 ```
 
 ---
