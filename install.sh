@@ -16,10 +16,21 @@ if ! command -v openbox >/dev/null || ! command -v tint2 >/dev/null; then
     fi
 fi
 
+# Optional notice: connect.sh only if a previous private backup was made
+BACKUP_DIR="$HOME/projects/gutterdesk-private-backup"
+if [ -f "$BACKUP_DIR/connect.sh" ] && [ ! -f "$HOME/.ssh/id_ed25519" ]; then
+    echo "------------------------------------------------------------------"
+    echo "Notice: Detected private backup at $BACKUP_DIR."
+    echo "If you made a previous backup, you can connect your identity and"
+    echo "profiles first by running: cd $BACKUP_DIR && ./connect.sh"
+    echo "------------------------------------------------------------------"
+    echo ""
+fi
+
 # Whiptail checkbox menu if available
 if command -v whiptail >/dev/null; then
     CHOICES=$(whiptail --title "gutterDesk Module Selector" \
-        --checklist "Select the modules to activate on this machine:\n(Use Space to select, Enter to confirm)" 20 75 6 \
+        --checklist "Select the modules to activate on this machine:\n(Use Space to select, Enter to confirm)\n\nNote: If you made a previous private backup, run './connect.sh' first." 22 75 6 \
         "1" "Creative Suite (GIMP, Krita, Inkscape, Blender, etc.)" OFF \
         "2" "Banyan Trading Engine (Wine64, Python venv, MT5 daemon)" OFF \
         "3" "Banyan Trading Dashboard (C++ desktop monitoring UI)" OFF \
