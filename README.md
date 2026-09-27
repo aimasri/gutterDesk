@@ -45,7 +45,7 @@ sudo reboot
 If migrating from a backup, extract your private profile and connect your SSH keys and desktop state:
 ```bash
 tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/projects/
-cd ~/projects/gutterdesk-private-backup && ./1-connect-identity.sh
+cd ~/projects/gutterdesk-private-backup && ./connect.sh
 ```
 
 ### 4. Enable Functional Modules (Optional)
@@ -58,7 +58,7 @@ cd ~/projects/gutterDesk
 ### 5. Hydrate Cloned Projects (Optional)
 Once you clone your repositories into `~/projects/`, inject their environment credentials:
 ```bash
-cd ~/projects/gutterdesk-private-backup && ./2-sync-environments.sh
+cd ~/projects/gutterdesk-private-backup && ./sync.sh
 ```
 
 ---

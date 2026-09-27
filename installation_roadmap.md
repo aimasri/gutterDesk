@@ -120,13 +120,13 @@ To restore personal notes, dock profiles, multi-account SSH keys, and project en
 tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/projects/
 cd ~/projects/gutterdesk-private-backup
 
-# 2. Stage 1: Connect machine identity, SSH keys, Antigravity, and MT5 config (Run before cloning)
-./1-connect-identity.sh
+# 2. Stage 1: Connect machine identity, SSH keys, Antigravity, and profiles (Run before cloning)
+./connect.sh
 
 # 3. Stage 2: Sync project .env credentials (Run after cloning your projects into ~/projects/)
-./2-sync-environments.sh
+./sync.sh
 
-# (Or run ./restore-all.sh to execute both stages sequentially)
+# (Or run ./restore.sh to execute both stages sequentially)
 ```
 
 ### What is Restored:
