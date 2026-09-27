@@ -119,4 +119,102 @@ if [ -f "requirements.txt" ]; then
     .venv/bin/pip install -r requirements.txt
 fi
 
-echo "Banyan Engine configuration complete."
+# Ensure run_engine.sh is executable
+if [ -f "$HOME/projects/Banyan/run_engine.sh" ]; then
+    chmod +x "$HOME/projects/Banyan/run_engine.sh"
+fi
+
+echo "=== Installing Banyan Engine Systemd User Services ==="
+SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+mkdir -p "$SYSTEMD_USER_DIR"
+
+# 1. Local GUI Engine Service (for physical X11 display session)
+cat << 'EOF' > "$SYSTEMD_USER_DIR/banyan-engine.service"
+[Unit]
+Description=Banyan Trading Engine
+After=network.target
+OnFailure=banyan-engine-failure-notify.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=%h/projects/Banyan/run_engine.sh
+WorkingDirectory=%h/projects/Banyan
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=0 143 SIGTERM
+TimeoutStopSec=15
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+
+[Install]
+WantedBy=default.target
+EOF
+
+# 2. Headless 24/7 Engine Service (Virtual Framebuffer for boot autostart)
+cat << 'EOF' > "$SYSTEMD_USER_DIR/banyan-engine-headless.service"
+[Unit]
+Description=Banyan Trading Engine Headless
+After=network.target
+OnFailure=banyan-engine-failure-notify.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/xvfb-run -a %h/projects/Banyan/run_engine.sh
+WorkingDirectory=%h/projects/Banyan
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=0 143 SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target
+EOF
+
+# 3. Engine Crash / Failure Notification Service
+cat << 'EOF' > "$SYSTEMD_USER_DIR/banyan-engine-failure-notify.service"
+[Unit]
+Description=Banyan Engine Failure Notification
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/notify-send -u critical "Banyan Alert" "Trading engine has failed or crashed unexpectedly!"
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+EOF
+
+# Enable lingering so systemd user services run at boot without requiring GUI login
+echo "Enabling user lingering for background autostart on system boot..."
+loginctl enable-linger "$USER" 2>/dev/null || sudo loginctl enable-linger "$USER" 2>/dev/null || true
+
+# Reload systemd user daemon and enable headless engine autostart
+echo "Reloading systemd user daemon..."
+systemctl --user daemon-reload
+echo "Enabling banyan-engine-headless.service for autostart..."
+systemctl --user enable banyan-engine-headless.service
+
+# Autostart the engine service if not already running
+if systemctl --user is-active --quiet banyan-engine.service; then
+    echo "✓ banyan-engine (GUI mode) is currently active and running."
+elif systemctl --user is-active --quiet banyan-engine-headless.service; then
+    echo "✓ banyan-engine-headless is already active and running."
+else
+    echo "Starting banyan-engine-headless.service..."
+    systemctl --user start banyan-engine-headless.service
+fi
+
+echo ""
+echo "=========================================================="
+echo "  Banyan Trading Engine installation and autostart ready! "
+echo "=========================================================="
+echo "Management commands:"
+echo "  • Status:  systemctl --user status banyan-engine-headless"
+echo "  • Logs:    journalctl --user -u banyan-engine-headless -f"
+echo "  • Stop:    systemctl --user stop banyan-engine-headless"
+echo "  • Start:   systemctl --user start banyan-engine-headless"
+echo "  • GUI run: systemctl --user start banyan-engine"
+echo "=========================================================="
+

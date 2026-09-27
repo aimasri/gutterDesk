@@ -1,0 +1,9 @@
+# Build Tools & CMake
+build-essential
+cmake
+pkg-config
+
+# Qt6 & XCB Desktop UI Libraries
+qt6-base-dev
+libxcb1-dev
+libxcb-ewmh-dev

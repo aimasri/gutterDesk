@@ -1,3 +1,5 @@
 wine64
 python3-venv
 python3-pip
+xvfb
+libnotify-bin
