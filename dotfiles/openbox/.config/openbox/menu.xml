@@ -73,7 +73,7 @@
         <execute>antigravity</execute>
       </action>
     </item>
-    <item label="Antigravity 2.0 (Agents Manager)">
+    <item label="Antigravity 2.0">
       <action name="Execute">
         <execute>antigravity2</execute>
       </action>
