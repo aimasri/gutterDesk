@@ -12,7 +12,6 @@ fi
 
 # Locate the installation repository
 REPO_DIR="$HOME/projects/gutterDesk"
-[ ! -d "$REPO_DIR" ] && [ -d "$HOME/projects/custom-distro" ] && REPO_DIR="$HOME/projects/custom-distro"
 if [ ! -d "$REPO_DIR" ]; then
     FOUND=$(find "$HOME" -maxdepth 3 -type f -name "install.sh" 2>/dev/null | head -n 1)
     [ -n "$FOUND" ] && REPO_DIR=$(dirname "$FOUND")
