@@ -17,7 +17,7 @@
 * **Package Manager:** apt / dpkg
 * **Window Management:** Openbox 3 + Picom (X11 Compositor) + Tint2 (Multi-desktop tactile status bar) + LightDM
 * **Theme & Palette:** **Midnight Forest** (Obsidian dark base `#060d08` with deep pine accents and sage text highlights `#629e79`)
-* **Core Utilities:** Guake (`F12` dropdown terminal), PCManFM (`F3` dual-pane & tabs file manager), gmrun (Application launcher)
+* **Core Utilities:** Guake (`F12` dropdown terminal), PCManFM (`F3` dual-pane & tabs file manager), gmrun (Application launcher), ARandR (Multi-screen management)
 * **Viewers & Media:** Viewnior (Images), Atril (Documents/PDFs), VLC (Audio/Video), Scrot (Full & region screenshots)
 * **Browsers:** Google Chrome (Multi-profile daily driver) and Chromium (Profile-free testing)
 * **AI & Code:** Antigravity IDE (Configured with agent rules and IDE preferences)
@@ -48,7 +48,7 @@ Activate only the modules required for the target machine:
 
 * **[ ] Module 4: Jellyfin Media Server & Tailscale (`modules/module-media-tailscale.sh`)**
   * *Purpose:* Encrypted remote access and hardware-accelerated media streaming.
-  * *Includes:* Tailscale WireGuard mesh node, Jellyfin server with `/dev/dri` GPU hardware transcoding permissions.
+  * *Includes:* Tailscale WireGuard mesh node, optional Jellyfin server with `/dev/dri` GPU hardware transcoding permissions.
 
 * **[ ] Module 5: Web Development Stack (`modules/module-webstack.sh`)**
   * *Purpose:* Multi-domain web hosting, reverse proxying, and local development.

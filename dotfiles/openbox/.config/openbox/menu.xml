@@ -278,6 +278,11 @@
           <execute>obconf</execute>
         </action>
       </item>
+      <item label="Display Settings">
+        <action name="Execute">
+          <execute>arandr</execute>
+        </action>
+      </item>
       <item label="Wallpaper Selection">
         <action name="Execute">
           <execute>nitrogen</execute>
