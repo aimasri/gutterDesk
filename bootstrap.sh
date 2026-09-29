@@ -316,30 +316,22 @@ run_as_target xdg-mime default pcmanfm.desktop inode/directory 2>/dev/null || tr
 
 # 8. Build gutterDeck and gutterTab
 echo "[7/8] Building and installing desktop utilities..."
-sudo mkdir -p "$TARGET_HOME/projects" "$TARGET_HOME/.local/bin" /usr/local/bin
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/projects" "$TARGET_HOME/.local" 2>/dev/null || true
+sudo mkdir -p "$TARGET_HOME/.local/bin" /usr/local/bin
+sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local" 2>/dev/null || true
 
 build_tool() {
     local name="$1"
     local repo="$2"
-    local dir="$TARGET_HOME/projects/$name"
+    local build_root="/tmp/gutterdesk-build"
+    local dir="$build_root/$name"
     
-    # Fix ownership if previously cloned by root
-    if [ -d "$dir" ] && [ "$EUID" -eq 0 ] && [ "$TARGET_USER" != "root" ]; then
-        sudo chown -R "$TARGET_USER:$TARGET_USER" "$dir"
-    fi
-    
-    if [ ! -d "$dir/.git" ]; then
-        echo "Attempting to clone $name into $dir as $TARGET_USER..."
-        [ -d "$dir" ] && rm -rf "$dir"
-        if ! run_as_target git clone "$repo" "$dir"; then
-            echo "ERROR: Failed to clone $name from $repo" >&2
-            echo "Please ensure internet connectivity to GitHub." >&2
-            exit 1
-        fi
-    else
-        echo "Repository $dir already exists, updating..."
-        run_as_target git -C "$dir" pull || true
+    run_as_target mkdir -p "$build_root"
+    echo "Cloning $name into temporary build directory $dir..."
+    rm -rf "$dir"
+    if ! run_as_target git clone "$repo" "$dir"; then
+        echo "ERROR: Failed to clone $name from $repo" >&2
+        echo "Please ensure internet connectivity to GitHub." >&2
+        exit 1
     fi
     
     if [ -f "$dir/CMakeLists.txt" ]; then
@@ -375,6 +367,7 @@ build_tool() {
 # Public HTTPS clones for universal accessibility
 build_tool "gutterDeck" "https://github.com/aimasri/gutterDeck.git"
 build_tool "gutterTab" "https://github.com/aimasri/gutterTab.git"
+rm -rf "/tmp/gutterdesk-build"
 
 # Verify binaries were compiled and installed
 if [ ! -x /usr/local/bin/gutterdeck ] && [ ! -x /usr/local/bin/gutterDeck ]; then

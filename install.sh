@@ -17,7 +17,10 @@ if ! command -v openbox >/dev/null || ! command -v tint2 >/dev/null; then
 fi
 
 # Optional notice: connect.sh only if a previous private backup was made
-BACKUP_DIR="$HOME/projects/gutterdesk-private-backup"
+BACKUP_DIR="$SCRIPT_DIR/backup"
+[ ! -d "$BACKUP_DIR" ] && [ -d "$HOME/gutterDesk/backup" ] && BACKUP_DIR="$HOME/gutterDesk/backup"
+[ ! -d "$BACKUP_DIR" ] && [ -d "$HOME/projects/gutterdesk-private-backup" ] && BACKUP_DIR="$HOME/projects/gutterdesk-private-backup"
+
 if [ -f "$BACKUP_DIR/connect.sh" ] && [ ! -f "$HOME/.ssh/id_ed25519" ]; then
     echo "------------------------------------------------------------------"
     echo "Notice: Detected private backup at $BACKUP_DIR."

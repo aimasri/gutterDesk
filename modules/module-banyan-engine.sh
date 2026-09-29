@@ -284,10 +284,16 @@ PYEOF
 
     # Auto-hydrate broker credentials from private backup if available and missing
     if [ -f "$mt5_exe" ] && [ ! -f "$mt5_config/accounts.dat" ]; then
-        if [ -d "$HOME/projects/gutterdesk-private-backup/mt5/Config" ]; then
+        BACKUP_MT5=""
+        if [ -d "$HOME/gutterDesk/backup/mt5/Config" ]; then
+            BACKUP_MT5="$HOME/gutterDesk/backup/mt5/Config"
+        elif [ -d "$HOME/projects/gutterdesk-private-backup/mt5/Config" ]; then
+            BACKUP_MT5="$HOME/projects/gutterdesk-private-backup/mt5/Config"
+        fi
+        if [ -n "$BACKUP_MT5" ]; then
             echo "Hydrating MetaTrader 5 broker profile from private backup..."
             mkdir -p "$mt5_config"
-            cp -a "$HOME/projects/gutterdesk-private-backup/mt5/Config/"* "$mt5_config/"
+            cp -a "$BACKUP_MT5/"* "$mt5_config/"
         fi
     fi
 

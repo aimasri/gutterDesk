@@ -1,0 +1,10 @@
+# Local private machine backup and credentials
+/backup/
+/private-backup/
+
+# Build and cache artifacts
+build/
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

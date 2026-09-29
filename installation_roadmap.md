@@ -64,8 +64,8 @@ Once rebooted into the text console (`login:`), log in as your regular user and 
 
 ```bash
 sudo apt update && sudo apt install -y git
-git clone https://github.com/aimasri/gutterDesk.git ~/projects/gutterDesk
-cd ~/projects/gutterDesk
+git clone https://github.com/aimasri/gutterDesk.git ~/gutterDesk
+cd ~/gutterDesk
 sudo ./bootstrap.sh
 ```
 
@@ -95,7 +95,7 @@ sudo reboot
 Once logged into your graphical desktop, open a terminal or press `F12` (Guake) and run:
 
 ```bash
-cd ~/projects/gutterDesk
+cd ~/gutterDesk
 ./install.sh
 ```
 
@@ -116,14 +116,15 @@ Press `Space` to select modules and `Enter` to install.
 To restore personal notes, dock profiles, multi-account SSH keys, and project environments:
 
 ```bash
-# 1. Extract archive to ~/projects/
-tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/projects/
-cd ~/projects/gutterdesk-private-backup
+# 1. Extract archive to ~/gutterDesk/backup/
+mkdir -p ~/gutterDesk/backup
+tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/gutterDesk/backup/ --strip-components=1
+cd ~/gutterDesk/backup
 
-# 2. Stage 1: Connect machine identity, SSH keys, Antigravity, and profiles (Run before cloning)
+# 2. Stage 1: Connect machine identity, SSH keys, Antigravity, and profiles (Run before cloning/mounting)
 ./connect.sh
 
-# 3. Stage 2: Sync project .env credentials (Run after cloning your projects into ~/projects/)
+# 3. Stage 2: Sync project .env credentials (Run after cloning or mounting your projects)
 ./sync.sh
 
 # (Or run ./restore.sh to execute both stages sequentially)
@@ -147,17 +148,17 @@ cd ~/projects/gutterdesk-private-backup
 
 ## 6. Multi-Machine Maintenance & Dotfile Synchronization
 
-All configurations (`~/.config/openbox`, `~/.config/tint2`, `~/.config/pcmanfm`) are live symlinks to `~/projects/gutterDesk/dotfiles/`.
+All configurations (`~/.config/openbox`, `~/.config/tint2`, `~/.config/pcmanfm`) are live symlinks to `~/gutterDesk/dotfiles/`.
 
 * **To push a configuration change from any machine:**
   ```bash
-  cd ~/projects/gutterDesk
+  cd ~/gutterDesk
   git commit -am "Updated keybindings or panel" && git push
   ```
 
 * **To apply updates on another machine on your network:**
   ```bash
-  cd ~/projects/gutterDesk && git pull
+  cd ~/gutterDesk && git pull
   openbox --reconfigure
   pkill -SIGUSR1 tint2
   ```

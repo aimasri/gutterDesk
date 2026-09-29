@@ -35,30 +35,31 @@ Start with an official **Debian 13 (Trixie) Minimal Netinst ISO** (`amd64`).
 Log in with your normal user account and bootstrap the system:
 ```bash
 sudo apt update && sudo apt install -y git
-git clone https://github.com/aimasri/gutterDesk.git ~/projects/gutterDesk
-cd ~/projects/gutterDesk
+git clone https://github.com/aimasri/gutterDesk.git ~/gutterDesk
+cd ~/gutterDesk
 sudo ./bootstrap.sh
 sudo reboot
 ```
 
 ### 3. Connect Machine Identity & Private Profiles (Optional)
-If migrating from a backup, extract your private profile and connect your SSH keys and desktop state:
+If migrating from a backup, extract your private profile into `~/gutterDesk/backup/` and connect your SSH keys and desktop state:
 ```bash
-tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/projects/
-cd ~/projects/gutterdesk-private-backup && ./connect.sh
+mkdir -p ~/gutterDesk/backup
+tar -xzf /path/to/gutterdesk-private-backup.tar.gz -C ~/gutterDesk/backup/ --strip-components=1
+cd ~/gutterDesk/backup && ./connect.sh
 ```
 
 ### 4. Enable Functional Modules (Optional)
 Once booted into the graphical desktop, launch the interactive module installer:
 ```bash
-cd ~/projects/gutterDesk
+cd ~/gutterDesk
 ./install.sh
 ```
 
 ### 5. Hydrate Cloned Projects (Optional)
-Once you clone your repositories into `~/projects/`, inject their environment credentials:
+Once you clone your repositories (or mount them from your central host), inject their environment credentials:
 ```bash
-cd ~/projects/gutterdesk-private-backup && ./sync.sh
+cd ~/gutterDesk/backup && ./sync.sh
 ```
 
 ---
