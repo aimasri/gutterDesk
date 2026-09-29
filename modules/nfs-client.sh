@@ -15,10 +15,13 @@ set -e
 
 TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
-MOUNT_POINT="$TARGET_HOME/aim-stream"
-SERVER_EXPORT="aim-stream:/"
+[ -z "$TARGET_HOME" ] && TARGET_HOME="$HOME"
 
-echo "=== [NFS Client] Configuring Resilient Automount for $TARGET_USER ==="
+SERVER_HOST="${1:-aim-stream}"
+MOUNT_POINT="$TARGET_HOME/$SERVER_HOST"
+SERVER_EXPORT="${SERVER_HOST}:/"
+
+echo "=== [NFS Client] Configuring Resilient Automount ($SERVER_HOST) for $TARGET_USER ==="
 
 # 1. Install nfs-common
 echo "--> Ensuring nfs-common is installed..."
@@ -60,8 +63,8 @@ sudo systemctl enable "$UNIT_NAME" 2>/dev/null || true
 # 7. Ensure GTK bookmark for PCManFM
 BOOKMARK_FILE="$TARGET_HOME/.config/gtk-3.0/bookmarks"
 mkdir -p "$(dirname "$BOOKMARK_FILE")"
-if [ ! -f "$BOOKMARK_FILE" ] || ! grep -q "aim-stream" "$BOOKMARK_FILE"; then
-    echo "file://$MOUNT_POINT aim-stream" >> "$BOOKMARK_FILE"
+if [ ! -f "$BOOKMARK_FILE" ] || ! grep -q "$SERVER_HOST" "$BOOKMARK_FILE"; then
+    echo "file://$MOUNT_POINT $SERVER_HOST" >> "$BOOKMARK_FILE"
     chown "$TARGET_USER:$TARGET_USER" "$BOOKMARK_FILE"
     echo "--> Added GTK bookmark for $MOUNT_POINT"
 fi
@@ -69,17 +72,17 @@ fi
 # 8. Test connectivity & automount
 echo ""
 echo "=== Testing Automount ==="
-if ping -c 1 -W 2 aim-stream >/dev/null 2>&1; then
-    echo "Host 'aim-stream' is reachable. Triggering automount..."
+if ping -c 1 -W 2 "$SERVER_HOST" >/dev/null 2>&1; then
+    echo "Host '$SERVER_HOST' is reachable. Triggering automount..."
     if ls "$MOUNT_POINT" >/dev/null 2>&1; then
         echo "✓ Automount verified successfully! Contents:"
         ls -la "$MOUNT_POINT"
     else
         echo "Notice: Host is reachable but NFS export could not be accessed."
-        echo "Ensure 'modules/nfs-server.sh' has been executed on aim-stream."
+        echo "Ensure 'modules/nfs-server.sh' has been executed on $SERVER_HOST."
     fi
 else
-    echo "Notice: Host 'aim-stream' is currently offline or unreachable."
+    echo "Notice: Host '$SERVER_HOST' is currently offline or unreachable."
     echo "Automount unit is armed and will connect automatically once online."
 fi
 

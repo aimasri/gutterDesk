@@ -34,7 +34,7 @@ Before booting the USB installer on a target machine (especially modern laptops 
 ### Installer Walkthrough
 1. **Boot:** Press your machine's boot menu key (ASUS: `F8` or `Esc`; Lenovo/Dell: `F12`; HP: `F9`) and select the **UEFI USB Drive**.
 2. **Network & Domain:**
-   * Hostname: choose your machine name (e.g. `aim-stream`, `gutterdesk-laptop`).
+   * Hostname: choose your machine name (e.g. `aim-stream`, `aim-book`).
    * **Domain Name:** **Leave completely blank** (prevents DNS conflicts on roaming Wi-Fi).
 3. **User Account & Root Password:**
    * **Root Password:** **Leave completely blank / empty** (Debian will disable the root account and automatically grant full `sudo` privileges to your user).

@@ -30,74 +30,171 @@ if [ -f "$BACKUP_DIR/connect.sh" ] && [ ! -f "$HOME/.ssh/id_ed25519" ]; then
     echo ""
 fi
 
-# Whiptail checkbox menu if available
+# ------------------------------------------------------------------
+# Step 1: Architectural Role Selection (Client vs Server vs Standalone)
+# ------------------------------------------------------------------
+ROLE=""
+SERVER_HOST="aim-stream"
+
+# Parse CLI flags
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        --client)
+            ROLE="client"
+            [ -n "$2" ] && [[ "$2" != --* ]] && { SERVER_HOST="$2"; shift; }
+            ;;
+        --server)
+            ROLE="server"
+            ;;
+        --standalone)
+            ROLE="standalone"
+            ;;
+        --skip-role)
+            ROLE="skip"
+            ;;
+        *)
+            ;;
+    esac
+    shift
+done
+
+if [ -z "$ROLE" ]; then
+    if command -v whiptail >/dev/null; then
+        ROLE_CHOICE=$(whiptail --title "gutterDesk Architecture Role" \
+            --menu "Select the architectural role for this machine:\n\nCentralizes projects on the server and mounts them on-demand via resilient NFSv4 on clients." 17 76 4 \
+            "1" "Client Workstation (Mounts remote projects from central server)" \
+            "2" "Central Server (Exports ~/projects to LAN & Tailscale via NFSv4)" \
+            "3" "Standalone Machine (Local projects only; no network storage)" \
+            "4" "Skip Role Setup (Keep existing storage configuration)" \
+            3>&1 1>&2 2>&3) || true
+        case "$ROLE_CHOICE" in
+            "1")
+                ROLE="client"
+                SERVER_INPUT=$(whiptail --title "NFS Server Hostname" \
+                    --inputbox "Enter hostname or IP of the central development server:" 10 60 "aim-stream" \
+                    3>&1 1>&2 2>&3) || SERVER_INPUT="aim-stream"
+                [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
+                ;;
+            "2")
+                ROLE="server"
+                ;;
+            "3")
+                ROLE="standalone"
+                ;;
+            *)
+                ROLE="skip"
+                ;;
+        esac
+    else
+        echo "Select Machine Architectural Role:"
+        echo "  1) Client Workstation (resilient NFSv4 automount to aim-stream)"
+        echo "  2) Central Server (exports ~/projects via NFSv4)"
+        echo "  3) Standalone Machine (local storage only)"
+        echo "  4) Skip Role Setup"
+        read -p "Role [1-4] (default 1): " ROLE_INPUT
+        case "${ROLE_INPUT:-1}" in
+            1)
+                ROLE="client"
+                read -p "Server hostname [aim-stream]: " SERVER_INPUT
+                [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
+                ;;
+            2)
+                ROLE="server"
+                ;;
+            3)
+                ROLE="standalone"
+                ;;
+            *)
+                ROLE="skip"
+                ;;
+        esac
+    fi
+fi
+
+# Execute role configuration
+case "$ROLE" in
+    client)
+        echo ""
+        echo "==> Configuring Machine as Client Workstation..."
+        "$SCRIPT_DIR/modules/nfs-client.sh" "$SERVER_HOST"
+        ;;
+    server)
+        echo ""
+        echo "==> Configuring Machine as Central Development Server..."
+        "$SCRIPT_DIR/modules/nfs-server.sh"
+        ;;
+    standalone)
+        echo "==> Machine configured as Standalone."
+        ;;
+    skip)
+        echo "==> Skipping role configuration."
+        ;;
+esac
+
+# ------------------------------------------------------------------
+# Step 2: Specialized Capability Modules (Checkbox Menu)
+# ------------------------------------------------------------------
+echo ""
+echo "----------------------------------------------------------"
+echo "  Step 2: Specialized Capability Modules                  "
+echo "----------------------------------------------------------"
+
 if command -v whiptail >/dev/null; then
     CHOICES=$(whiptail --title "gutterDesk Module Selector" \
-        --checklist "Select the modules to activate on this machine:\n(Use Space to select, Enter to confirm)\n\nNote: If you made a previous private backup, run './connect.sh' first." 23 76 8 \
+        --checklist "Select additional capability modules to activate on this machine:\n(Use Space to select, Enter to confirm)" 21 76 6 \
         "1" "Creative Suite (GIMP, Krita, Inkscape, Blender, etc.)" OFF \
         "2" "Banyan Trading Engine (Wine64, Python venv, MT5 daemon)" OFF \
         "3" "Banyan Trading Dashboard (C++ desktop monitoring UI)" OFF \
         "4" "Jellyfin Media Server & Tailscale Mesh Node" OFF \
         "5" "Web Development Stack (Apache2, Postgres, Redis, repos)" OFF \
         "6" "Torrent Machine (Transmission-gtk, UFW)" OFF \
-        "7" "NFSv4 Server (Export /home/ahmed/projects on aim-stream)" OFF \
-        "8" "NFSv4 Client Automount (Resilient systemd mount for aim-stream)" OFF \
         3>&1 1>&2 2>&3) || true
 else
     # Simple CLI fallback
-    echo "Select modules to install (comma-separated, e.g. 1,4,5):"
+    echo "Select modules to install (comma-separated, e.g. 1,4,5 or press Enter to skip):"
     echo "  1) Creative Suite"
     echo "  2) Banyan Trading Engine"
     echo "  3) Banyan Trading Dashboard"
     echo "  4) Jellyfin & Tailscale"
     echo "  5) Web Development Stack"
     echo "  6) Torrent Machine"
-    echo "  7) NFSv4 Server (aim-stream)"
-    echo "  8) NFSv4 Client Automount"
     read -p "Selection: " CHOICES
     CHOICES=$(echo "$CHOICES" | tr ',' ' ')
 fi
 
-# Exit cleanly if cancelled or nothing selected
-if [ -z "$(echo "$CHOICES" | tr -d '[:space:]\"')" ]; then
-    echo "No modules selected. Exiting."
-    exit 0
+# Execute selected functional modules
+if [ -n "$(echo "$CHOICES" | tr -d '[:space:]\"')" ]; then
+    echo ""
+    echo "=== Executing Selected Modules ==="
+
+    for choice in $CHOICES; do
+        clean_choice=$(echo "$choice" | tr -d '"')
+        case "$clean_choice" in
+            1)
+                "$SCRIPT_DIR/modules/module-creative.sh"
+                ;;
+            2)
+                "$SCRIPT_DIR/modules/module-banyan-engine.sh"
+                ;;
+            3)
+                "$SCRIPT_DIR/modules/module-banyan-dashboard.sh"
+                ;;
+            4)
+                "$SCRIPT_DIR/modules/module-media-tailscale.sh"
+                ;;
+            5)
+                "$SCRIPT_DIR/modules/module-webstack.sh"
+                ;;
+            6)
+                "$SCRIPT_DIR/modules/module-torrent.sh"
+                ;;
+        esac
+    done
+else
+    echo "No additional capability modules selected."
 fi
 
 echo ""
-echo "=== Executing Selected Modules ==="
-
-for choice in $CHOICES; do
-    clean_choice=$(echo "$choice" | tr -d '"')
-    case "$clean_choice" in
-        1)
-            "$SCRIPT_DIR/modules/module-creative.sh"
-            ;;
-        2)
-            "$SCRIPT_DIR/modules/module-banyan-engine.sh"
-            ;;
-        3)
-            "$SCRIPT_DIR/modules/module-banyan-dashboard.sh"
-            ;;
-        4)
-            "$SCRIPT_DIR/modules/module-media-tailscale.sh"
-            ;;
-        5)
-            "$SCRIPT_DIR/modules/module-webstack.sh"
-            ;;
-        6)
-            "$SCRIPT_DIR/modules/module-torrent.sh"
-            ;;
-        7)
-            "$SCRIPT_DIR/modules/nfs-server.sh"
-            ;;
-        8)
-            "$SCRIPT_DIR/modules/nfs-client.sh"
-            ;;
-    esac
-done
-
-echo ""
 echo "=========================================================="
-echo "    All selected modules have been installed!             "
+echo "    gutterDesk installation & provisioning complete!      "
 echo "=========================================================="

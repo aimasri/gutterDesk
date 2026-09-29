@@ -312,8 +312,11 @@ echo "=== Installing Banyan Engine Systemd User Services ==="
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 mkdir -p "$SYSTEMD_USER_DIR"
 
+HOST_ENGINE_ID="$(hostname | tr '[:upper:]' '[:lower:]' | tr '-' '_')"
+HOST_ENGINE_NAME="$(hostname)"
+
 # 1. Local GUI Engine Service (for physical X11 display session)
-cat << 'EOF' > "$SYSTEMD_USER_DIR/banyan-engine.service"
+cat << EOF > "$SYSTEMD_USER_DIR/banyan-engine.service"
 [Unit]
 Description=Banyan Trading Engine
 After=network.target
@@ -331,13 +334,15 @@ SuccessExitStatus=0 143 SIGTERM
 TimeoutStopSec=15
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=%h/.Xauthority
+Environment=BANYAN_ENGINE_ID=$HOST_ENGINE_ID
+Environment=BANYAN_ENGINE_NAME=$HOST_ENGINE_NAME
 
 [Install]
 WantedBy=default.target
 EOF
 
 # 2. Headless 24/7 Engine Service (Virtual Framebuffer for boot autostart)
-cat << 'EOF' > "$SYSTEMD_USER_DIR/banyan-engine-headless.service"
+cat << EOF > "$SYSTEMD_USER_DIR/banyan-engine-headless.service"
 [Unit]
 Description=Banyan Trading Engine Headless
 After=network.target
@@ -353,6 +358,8 @@ Restart=on-failure
 RestartSec=5
 SuccessExitStatus=0 143 SIGTERM
 TimeoutStopSec=15
+Environment=BANYAN_ENGINE_ID=$HOST_ENGINE_ID
+Environment=BANYAN_ENGINE_NAME=$HOST_ENGINE_NAME
 
 [Install]
 WantedBy=default.target

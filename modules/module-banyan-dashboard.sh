@@ -50,7 +50,7 @@ After=graphical-session.target
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/banyan_daemon
-WorkingDirectory=%h/projects/Banyan/desktop
+WorkingDirectory=%h
 Restart=on-failure
 RestartSec=3
 Environment=DISPLAY=:0

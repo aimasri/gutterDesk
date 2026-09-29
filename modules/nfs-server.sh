@@ -16,11 +16,15 @@ sudo apt-get update
 sudo apt-get install -y nfs-kernel-server
 
 # 2. Verify export directory
-EXPORT_DIR="/home/ahmed/projects"
+TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+[ -z "$TARGET_HOME" ] && TARGET_HOME="$HOME"
+EXPORT_DIR="$TARGET_HOME/projects"
+
 if [ ! -d "$EXPORT_DIR" ]; then
     echo "Creating export directory $EXPORT_DIR..."
     mkdir -p "$EXPORT_DIR"
-    chown -R "${SUDO_USER:-$USER}:${SUDO_USER:-$USER}" "$EXPORT_DIR"
+    chown -R "$TARGET_USER:$TARGET_USER" "$EXPORT_DIR"
 fi
 
 # 3. Configure /etc/exports
