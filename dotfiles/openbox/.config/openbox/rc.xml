@@ -393,6 +393,23 @@
         <command>light-locker-command -l 2>/dev/null || dm-tool lock</command>
       </action>
     </keybind>
+    <!-- Screen Auto-rotation lock toggle and manual rotation cycle -->
+    <keybind key="W-o">
+      <action name="Execute">
+        <startupnotify>
+          <enabled>false</enabled>
+        </startupnotify>
+        <command>gutterdesk-rotator toggle-lock</command>
+      </action>
+    </keybind>
+    <keybind key="C-W-o">
+      <action name="Execute">
+        <startupnotify>
+          <enabled>false</enabled>
+        </startupnotify>
+        <command>gutterdesk-rotator toggle</command>
+      </action>
+    </keybind>
     <keybind key="W-e">
       <action name="Execute">
         <startupnotify>

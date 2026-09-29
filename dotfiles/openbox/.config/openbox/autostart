@@ -27,6 +27,9 @@ fi
 ## 1. Auto-detect orientation and apply matching wallpapers (backgrounded)
 ([ -x ~/.local/bin/auto-wallpaper.sh ] && ~/.local/bin/auto-wallpaper.sh || (nitrogen --restore &)) &
 
+## 1b. Automatic screen & touch rotation daemon (for 2-in-1 laptops)
+[ -x ~/.local/bin/gutterdesk-rotator ] && (~/.local/bin/gutterdesk-rotator --daemon &)
+
 ## 2. Start compositor (picom)
 which picom >/dev/null 2>&1 && (picom -b &)
 

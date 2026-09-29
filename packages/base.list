@@ -3,6 +3,8 @@ xserver-xorg
 xinit
 lightdm
 lightdm-gtk-greeter
+xinput
+iio-sensor-proxy
 
 # Boot Splash
 plymouth

@@ -1,0 +1,345 @@
+#!/usr/bin/env python3
+"""
+gutterdesk-rotator
+------------------
+Automatic screen & touch rotation daemon for gutterDesk on 2-in-1 laptops
+(Dell Inspiron 2-in-1, Lenovo Yoga, HP Envy x360, etc.)
+
+Features:
+- Interfaces with iio-sensor-proxy via D-Bus (zero CPU polling)
+- Rotates primary display via xrandr
+- Transforms touchscreen & stylus coordinate mapping via xinput
+- Automatically updates wallpaper via auto-wallpaper.sh
+- Refreshes Tint2 panel dimensions on rotation
+- Supports rotation lock toggle and manual rotation overrides
+"""
+
+import sys
+import os
+import subprocess
+import signal
+import time
+
+LOCK_FILE = "/tmp/gutterdesk-rotation-locked"
+
+# Mapping: iio-sensor-proxy orientation -> (xrandr rotation, xinput matrix)
+# Transformation matrix format: c0 c1 c2 c3 c4 c5 c6 c7 c8
+ORIENTATION_CONFIG = {
+    "normal": {
+        "xrandr": "normal",
+        "matrix": "1 0 0 0 1 0 0 0 1",
+    },
+    "bottom-up": {
+        "xrandr": "inverted",
+        "matrix": "-1 0 1 0 -1 1 0 0 1",
+    },
+    "left-up": {
+        "xrandr": "left",
+        "matrix": "0 -1 1 1 0 0 0 0 1",
+    },
+    "right-up": {
+        "xrandr": "right",
+        "matrix": "0 1 0 -1 0 1 0 0 1",
+    },
+}
+
+CYCLE_ORDER = ["normal", "right", "inverted", "left"]
+
+
+def send_notification(summary, message=""):
+    try:
+        subprocess.run(["notify-send", "-a", "gutterDesk", summary, message], check=False)
+    except Exception:
+        pass
+
+
+def get_primary_display():
+    """Detect active connected internal display (e.g., eDP, eDP-1, LVDS-1)."""
+    try:
+        out = subprocess.check_output(["xrandr", "--query"], text=True)
+        # 1. Connected primary
+        for line in out.splitlines():
+            if " connected primary" in line:
+                return line.split()[0]
+        # 2. Connected eDP or LVDS
+        for line in out.splitlines():
+            if " connected" in line and (line.startswith("eDP") or line.startswith("LVDS")):
+                return line.split()[0]
+        # 3. Any connected
+        for line in out.splitlines():
+            if " connected" in line:
+                return line.split()[0]
+    except Exception as e:
+        print(f"[gutterdesk-rotator] Error finding display: {e}", file=sys.stderr)
+    return "eDP"
+
+
+def get_current_rotation(display):
+    """Query current rotation from xrandr."""
+    try:
+        out = subprocess.check_output(["xrandr", "--query"], text=True)
+        for line in out.splitlines():
+            if line.startswith(display + " "):
+                # Only check tokens before the '(' which contains supported capabilities
+                before_paren = line.split("(")[0].split()
+                for mode in ["inverted", "left", "right"]:
+                    if mode in before_paren:
+                        return mode
+                return "normal"
+    except Exception:
+        pass
+    return "normal"
+
+
+def get_touch_devices():
+    """Discover touchscreen and stylus pointer device IDs from xinput."""
+    devices = []
+    try:
+        out = subprocess.check_output(["xinput", "list", "--name-only"], text=True)
+        for name in out.splitlines():
+            name_clean = name.strip()
+            name_lower = name_clean.lower()
+            # Look for touchscreen or stylus keywords, or known Dell 2-in-1 touchscreen vendor ID (04f3:2c62)
+            if any(k in name_lower for k in ["touchscreen", "stylus", "pen", "04f3:2c62", "wacom", "elan", "atmel"]):
+                # Exclude standard touchpads and keyboards
+                if "touchpad" not in name_lower and "keyboard" not in name_lower:
+                    devices.append(name_clean)
+    except FileNotFoundError:
+        # xinput not installed
+        pass
+    except Exception as e:
+        print(f"[gutterdesk-rotator] Error detecting touch devices: {e}", file=sys.stderr)
+    return list(set(devices))
+
+
+def apply_rotation(target_xrandr_rotation, matrix=None):
+    display = get_primary_display()
+    current = get_current_rotation(display)
+    if current == target_xrandr_rotation:
+        # Already in requested rotation
+        return
+
+    print(f"[gutterdesk-rotator] Rotating display {display} to {target_xrandr_rotation}...")
+
+    # 1. Rotate display with xrandr
+    try:
+        subprocess.run(["xrandr", "--output", display, "--rotate", target_xrandr_rotation], check=True)
+    except Exception as e:
+        print(f"[gutterdesk-rotator] xrandr failed: {e}", file=sys.stderr)
+        return
+
+    # 2. Update touch & stylus devices with xinput
+    touch_devices = get_touch_devices()
+    for dev in touch_devices:
+        try:
+            # First try map-to-output which automatically calculates exact matrix
+            ret = subprocess.run(["xinput", "map-to-output", dev, display], capture_output=True)
+            if ret.returncode != 0 and matrix:
+                # Fallback to direct matrix property
+                subprocess.run(
+                    ["xinput", "set-prop", dev, "Coordinate Transformation Matrix"] + matrix.split(),
+                    check=False,
+                )
+        except Exception as e:
+            print(f"[gutterdesk-rotator] Failed to configure input {dev}: {e}", file=sys.stderr)
+
+    # 3. Update wallpaper if auto-wallpaper.sh is present
+    auto_wp = os.path.expanduser("~/.local/bin/auto-wallpaper.sh")
+    if os.path.isfile(auto_wp) and os.access(auto_wp, os.X_OK):
+        try:
+            subprocess.Popen([auto_wp])
+        except Exception:
+            pass
+
+    # 4. Refresh tint2 panel geometry
+    try:
+        subprocess.run(["killall", "-SIGUSR1", "tint2"], check=False)
+    except Exception:
+        pass
+
+
+def is_locked():
+    return os.path.exists(LOCK_FILE)
+
+
+def toggle_lock():
+    if is_locked():
+        try:
+            os.remove(LOCK_FILE)
+            send_notification("Auto-Rotation Unlocked", "Display will adjust automatically as you swivel.")
+            print("[gutterdesk-rotator] Auto-rotation unlocked.")
+        except Exception as e:
+            print(f"[gutterdesk-rotator] Failed to unlock: {e}", file=sys.stderr)
+    else:
+        try:
+            with open(LOCK_FILE, "w") as f:
+                f.write(str(os.getpid()))
+            send_notification("Auto-Rotation Locked", "Display orientation fixed.")
+            print("[gutterdesk-rotator] Auto-rotation locked.")
+        except Exception as e:
+            print(f"[gutterdesk-rotator] Failed to lock: {e}", file=sys.stderr)
+
+
+def cycle_rotation():
+    display = get_primary_display()
+    current = get_current_rotation(display)
+    try:
+        idx = CYCLE_ORDER.index(current)
+        next_mode = CYCLE_ORDER[(idx + 1) % len(CYCLE_ORDER)]
+    except ValueError:
+        next_mode = "normal"
+
+    # Find matrix for this mode
+    matrix = "1 0 0 0 1 0 0 0 1"
+    for conf in ORIENTATION_CONFIG.values():
+        if conf["xrandr"] == next_mode:
+            matrix = conf["matrix"]
+            break
+
+    apply_rotation(next_mode, matrix)
+
+
+def handle_orientation_change(sensor_orientation):
+    if is_locked():
+        print(f"[gutterdesk-rotator] Rotation locked, ignoring sensor event: {sensor_orientation}")
+        return
+
+    if sensor_orientation in ORIENTATION_CONFIG:
+        conf = ORIENTATION_CONFIG[sensor_orientation]
+        apply_rotation(conf["xrandr"], conf["matrix"])
+    else:
+        print(f"[gutterdesk-rotator] Unknown or undefined orientation: {sensor_orientation}")
+
+
+def run_daemon():
+    print("[gutterdesk-rotator] Starting rotation daemon...")
+
+    try:
+        import dbus
+        from dbus.mainloop.glib import DBusGMainLoop
+        from gi.repository import GLib
+    except ImportError as e:
+        print(f"[gutterdesk-rotator] Missing D-Bus/GLib Python bindings: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    DBusGMainLoop(set_as_default=True)
+
+    try:
+        bus = dbus.SystemBus()
+    except Exception as e:
+        print(f"[gutterdesk-rotator] Cannot connect to system D-Bus: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        proxy = bus.get_object("net.hadess.SensorProxy", "/net/hadess/SensorProxy")
+        props_iface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+        sensor_iface = dbus.Interface(proxy, "net.hadess.SensorProxy")
+
+        # Claim the accelerometer to initiate hardware polling
+        sensor_iface.ClaimAccelerometer()
+        print("[gutterdesk-rotator] Accelerometer claimed successfully.")
+
+        # Read initial orientation
+        initial = str(props_iface.Get("net.hadess.SensorProxy", "AccelerometerOrientation"))
+        print(f"[gutterdesk-rotator] Initial orientation: {initial}")
+        if initial != "undefined":
+            handle_orientation_change(initial)
+
+        # Listen for orientation change signals
+        def on_properties_changed(interface_name, changed_properties, invalidated_properties):
+            if interface_name == "net.hadess.SensorProxy" and "AccelerometerOrientation" in changed_properties:
+                orientation = str(changed_properties["AccelerometerOrientation"])
+                print(f"[gutterdesk-rotator] Sensor orientation changed: {orientation}")
+                handle_orientation_change(orientation)
+
+        props_iface.connect_to_signal("PropertiesChanged", on_properties_changed)
+
+    except dbus.DBusException as e:
+        print(
+            f"[gutterdesk-rotator] Failed to connect to iio-sensor-proxy: {e}\n"
+            "Please ensure 'iio-sensor-proxy' is installed and running (`sudo systemctl start iio-sensor-proxy`).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    loop = GLib.MainLoop()
+
+    def sig_handler(sig, frame):
+        print("\n[gutterdesk-rotator] Exiting...")
+        try:
+            sensor_iface.ReleaseAccelerometer()
+        except Exception:
+            pass
+        loop.quit()
+
+    signal.signal(signal.SIGINT, sig_handler)
+    signal.signal(signal.SIGTERM, sig_handler)
+
+    loop.run()
+
+
+def show_status():
+    display = get_primary_display()
+    current_rot = get_current_rotation(display)
+    locked = is_locked()
+    touch = get_touch_devices()
+
+    print("=== gutterDesk Display & Sensor Status ===")
+    print(f"Primary Display: {display}")
+    print(f"Current Display Rotation: {current_rot}")
+    print(f"Rotation Lock: {'LOCKED' if locked else 'UNLOCKED'}")
+    print(f"Detected Touch / Stylus Devices: {touch if touch else 'None found via xinput'}")
+
+    try:
+        import dbus
+
+        bus = dbus.SystemBus()
+        proxy = bus.get_object("net.hadess.SensorProxy", "/net/hadess/SensorProxy")
+        props_iface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+        has_accel = bool(props_iface.Get("net.hadess.SensorProxy", "HasAccelerometer"))
+        orientation = str(props_iface.Get("net.hadess.SensorProxy", "AccelerometerOrientation"))
+        print(f"iio-sensor-proxy Service: RUNNING")
+        print(f"Hardware Accelerometer: {'DETECTED' if has_accel else 'NOT DETECTED'}")
+        print(f"Sensor Orientation: {orientation}")
+    except Exception as e:
+        print(f"iio-sensor-proxy Service: NOT RUNNING or UNREACHABLE ({e})")
+
+
+def main():
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1].lower()
+        if cmd in ["--daemon", "-d", "daemon"]:
+            run_daemon()
+        elif cmd in ["--lock", "lock", "--toggle-lock", "toggle-lock"]:
+            toggle_lock()
+        elif cmd in ["--cycle", "cycle", "toggle", "--toggle"]:
+            cycle_rotation()
+        elif cmd in ["normal", "inverted", "left", "right"]:
+            # Lookup matrix
+            matrix = "1 0 0 0 1 0 0 0 1"
+            for conf in ORIENTATION_CONFIG.values():
+                if conf["xrandr"] == cmd:
+                    matrix = conf["matrix"]
+                    break
+            apply_rotation(cmd, matrix)
+        elif cmd in ["status", "--status", "-s"]:
+            show_status()
+        elif cmd in ["--help", "-h", "help"]:
+            print("Usage: gutterdesk-rotator [COMMAND]")
+            print("Commands:")
+            print("  --daemon       Run the sensor listener daemon")
+            print("  toggle-lock    Toggle rotation lock on/off")
+            print("  toggle / cycle Rotate 90 degrees clockwise")
+            print("  normal         Force landscape standard orientation")
+            print("  left           Force 90-degree left portrait")
+            print("  right          Force 90-degree right portrait")
+            print("  inverted       Force 180-degree upside down")
+            print("  status         Print current status")
+        else:
+            print(f"Unknown command: {cmd}. Run with --help for options.")
+    else:
+        run_daemon()
+
+
+if __name__ == "__main__":
+    main()
