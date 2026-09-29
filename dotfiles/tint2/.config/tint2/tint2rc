@@ -57,7 +57,7 @@ background_color = #888888 20
 border_color = #888888 20
 
 # Panel
-panel_monitor = all
+panel_monitor = primary
 panel_position = bottom center horizontal
 panel_items = TSEBC
 panel_size = 100% 30
@@ -133,6 +133,7 @@ systray_sort = right2left
 systray_background_id = 0
 systray_icon_size = 24
 systray_icon_asb = 100 0 0
+systray_monitor = primary
 
 # Clock
 time1_format = %H:%M

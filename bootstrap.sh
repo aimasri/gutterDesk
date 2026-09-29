@@ -450,8 +450,8 @@ if [ ! -f /usr/share/antigravity/antigravity-ide ]; then
     sudo chown root:root /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
     sudo chmod 4755 /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
 fi
-sudo ln -sf /usr/share/antigravity/antigravity-ide /usr/bin/antigravity
-sudo ln -sf /usr/share/antigravity/antigravity-ide /usr/local/bin/antigravity
+sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/bin/antigravity
+sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/local/bin/antigravity
 run_as_target ln -sf /usr/bin/antigravity "$TARGET_HOME/.local/bin/antigravity"
 
 # B. Antigravity 2.0 (Standalone Multi-Agent Platform & Agents Manager)

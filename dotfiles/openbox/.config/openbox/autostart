@@ -8,8 +8,8 @@ fi
 export GTK_USE_PORTAL=0
 
 ## Set monitors layout if configured
-[ -f ~/.screenlayout/default.sh ] && (~/.screenlayout/default.sh &)
-xrdb -merge ~/.Xresources &
+[ -f ~/.screenlayout/default.sh ] && ~/.screenlayout/default.sh
+[ -f ~/.Xresources ] && xrdb -merge ~/.Xresources
 
 ## XSETTINGS daemon (propagates GTK & Papirus-Dark icon theme to tray applets)
 which xsettingsd >/dev/null 2>&1 && (xsettingsd &)
@@ -61,6 +61,9 @@ which parcellite >/dev/null 2>&1 && (sleep 2s && parcellite) &
 
 ## 11. Banyan Desktop System Tray Daemon (if installed)
 [ -f ~/.config/systemd/user/banyan-desktop.service ] && (sleep 3s && systemctl --user start banyan-desktop.service) &
+
+## Remote Development Network Mount (aim-stream)
+[ -x ~/.local/bin/mount-aim-stream.sh ] && (sleep 2s && ~/.local/bin/mount-aim-stream.sh &)
 
 ## Keyboard repeat rate settings
 xset r rate 250 25 &
