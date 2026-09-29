@@ -17,7 +17,7 @@ TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 [ -z "$TARGET_HOME" ] && TARGET_HOME="$HOME"
 
-SERVER_HOST="${1:-aim-stream}"
+SERVER_HOST="${1:-gutterdesk-server}"
 MOUNT_POINT="$TARGET_HOME/$SERVER_HOST"
 SERVER_EXPORT="${SERVER_HOST}:/"
 

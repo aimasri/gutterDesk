@@ -34,7 +34,10 @@ fi
 # Step 1: Architectural Role Selection (Client vs Server vs Standalone)
 # ------------------------------------------------------------------
 ROLE=""
-SERVER_HOST="aim-stream"
+EXISTING_SERVER=$(grep -oP '^[a-zA-Z0-9._-]+(?=:/)' /etc/fstab 2>/dev/null | head -n 1)
+DEFAULT_SERVER="${EXISTING_SERVER:-gutterdesk-server}"
+SERVER_HOST="$DEFAULT_SERVER"
+SERVER_EXPORT_DIR="$HOME/projects"
 
 # Parse CLI flags
 while [[ "$#" -gt 0 ]]; do
@@ -45,6 +48,7 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         --server)
             ROLE="server"
+            [ -n "$2" ] && [[ "$2" != --* ]] && { SERVER_EXPORT_DIR="$2"; shift; }
             ;;
         --standalone)
             ROLE="standalone"
@@ -63,7 +67,7 @@ if [ -z "$ROLE" ]; then
         ROLE_CHOICE=$(whiptail --title "gutterDesk Architecture Role" \
             --menu "Select the architectural role for this machine:\n\nCentralizes projects on the server and mounts them on-demand via resilient NFSv4 on clients." 17 76 4 \
             "1" "Client Workstation (Mounts remote projects from central server)" \
-            "2" "Central Server (Exports ~/projects to LAN & Tailscale via NFSv4)" \
+            "2" "Central Server (Exports projects to LAN & Tailscale via NFSv4)" \
             "3" "Standalone Machine (Local projects only; no network storage)" \
             "4" "Skip Role Setup (Keep existing storage configuration)" \
             3>&1 1>&2 2>&3) || true
@@ -71,12 +75,27 @@ if [ -z "$ROLE" ]; then
             "1")
                 ROLE="client"
                 SERVER_INPUT=$(whiptail --title "NFS Server Hostname" \
-                    --inputbox "Enter hostname or IP of the central development server:" 10 60 "aim-stream" \
-                    3>&1 1>&2 2>&3) || SERVER_INPUT="aim-stream"
+                    --inputbox "Enter hostname or IP of the central development server:" 10 60 "$DEFAULT_SERVER" \
+                    3>&1 1>&2 2>&3) || SERVER_INPUT="$DEFAULT_SERVER"
                 [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
                 ;;
             "2")
                 ROLE="server"
+                EXPORT_CHOICE=$(whiptail --title "NFS Server Export Scope" \
+                    --menu "Select the directory scope to export via NFSv4:\n\nNote: Exporting user root (~) includes ~/.ssh, browser tokens, and dotfiles." 16 76 3 \
+                    "1" "Dedicated Projects Workspace (~/projects) [Recommended]" \
+                    "2" "User Home Directory (~) [Full access, credential exposure]" \
+                    "3" "Custom Directory Path" \
+                    3>&1 1>&2 2>&3) || EXPORT_CHOICE="1"
+                case "$EXPORT_CHOICE" in
+                    "1") SERVER_EXPORT_DIR="$HOME/projects" ;;
+                    "2") SERVER_EXPORT_DIR="$HOME" ;;
+                    "3")
+                        SERVER_EXPORT_DIR=$(whiptail --title "Custom Export Directory" \
+                            --inputbox "Enter absolute directory path to export:" 10 60 "$HOME/projects" \
+                            3>&1 1>&2 2>&3) || SERVER_EXPORT_DIR="$HOME/projects"
+                        ;;
+                esac
                 ;;
             "3")
                 ROLE="standalone"
@@ -87,19 +106,32 @@ if [ -z "$ROLE" ]; then
         esac
     else
         echo "Select Machine Architectural Role:"
-        echo "  1) Client Workstation (resilient NFSv4 automount to aim-stream)"
-        echo "  2) Central Server (exports ~/projects via NFSv4)"
+        echo "  1) Client Workstation (resilient NFSv4 automount to central server)"
+        echo "  2) Central Server (exports projects via NFSv4)"
         echo "  3) Standalone Machine (local storage only)"
         echo "  4) Skip Role Setup"
         read -p "Role [1-4] (default 1): " ROLE_INPUT
         case "${ROLE_INPUT:-1}" in
             1)
                 ROLE="client"
-                read -p "Server hostname [aim-stream]: " SERVER_INPUT
+                read -p "Server hostname [$DEFAULT_SERVER]: " SERVER_INPUT
                 [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
                 ;;
             2)
                 ROLE="server"
+                echo "Select export directory scope:"
+                echo "  1) Dedicated Projects Workspace (~/projects) [Recommended]"
+                echo "  2) User Home Directory (~) [Full root access, exposes ~/.ssh]"
+                echo "  3) Custom Directory Path"
+                read -p "Scope [1-3] (default 1): " EXPORT_CHOICE
+                case "${EXPORT_CHOICE:-1}" in
+                    1) SERVER_EXPORT_DIR="$HOME/projects" ;;
+                    2) SERVER_EXPORT_DIR="$HOME" ;;
+                    3)
+                        read -p "Enter path [$HOME/projects]: " CUSTOM_PATH
+                        SERVER_EXPORT_DIR="${CUSTOM_PATH:-$HOME/projects}"
+                        ;;
+                esac
                 ;;
             3)
                 ROLE="standalone"
@@ -115,13 +147,13 @@ fi
 case "$ROLE" in
     client)
         echo ""
-        echo "==> Configuring Machine as Client Workstation..."
+        echo "==> Configuring Machine as Client Workstation (Target Server: $SERVER_HOST)..."
         "$SCRIPT_DIR/modules/nfs-client.sh" "$SERVER_HOST"
         ;;
     server)
         echo ""
-        echo "==> Configuring Machine as Central Development Server..."
-        "$SCRIPT_DIR/modules/nfs-server.sh"
+        echo "==> Configuring Machine as Central Development Server (Export: $SERVER_EXPORT_DIR)..."
+        "$SCRIPT_DIR/modules/nfs-server.sh" "$SERVER_EXPORT_DIR"
         ;;
     standalone)
         echo "==> Machine configured as Standalone."

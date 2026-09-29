@@ -92,24 +92,24 @@ Activate only the modules required for the target machine:
 To eliminate configuration drift, file duplication, and background sync overhead across workstations, gutterDesk defines a strict, two-tier remote development topology across all machines:
 
 ### Machine Topology & Responsibilities
-* **`aim-stream` (Central Workhorse Server):**
-  * Hosts all active development codebases in `/home/ahmed/projects`.
+* **Central Development Server (Production: `aim-stream`):**
+  * Hosts all active development codebases in `/home/<user>/projects`.
   * Runs system services, runtime interpreters, database daemons (PostgreSQL, Redis, Apache2, Wine/MT5).
-  * Exports `/home/ahmed/projects` via a hardened NFSv4-only server (`modules/nfs-server.sh`) to the local LAN (`192.168.1.0/24`) and Tailscale subnet (`100.64.0.0/10`).
-* **`AiM-Home` (Primary Client Workstation) & `aim-book` (Portable Client Laptop):**
-  * Zero local duplicate development repos (`~/projects` is purged).
+  * Exports `/home/<user>/projects` via a hardened NFSv4-only server (`modules/nfs-server.sh`) to the local LAN and Tailscale mesh subnet.
+* **Client Workstations (Production: `AiM-Home`, `aim-book`):**
+  * Zero local duplicate development repos (`~/projects` is purged on clients).
   * Only contains the base OS repository and private backup at `~/gutterDesk`.
-  * Accesses remote projects via a resilient, on-demand systemd NFSv4 automount at `~/aim-stream`.
+  * Accesses remote projects via a resilient, on-demand systemd NFSv4 automount at `~/<server-hostname>` (e.g. `~/aim-stream`).
 
 ### Storage Tier: Resilient Systemd NFSv4 Automount
 * **PCManFM & File Browsing:** Configured via native systemd automount in `/etc/fstab`:
   ```fstab
-  aim-stream:/ /home/ahmed/aim-stream nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
+  <server>:/ /home/<user>/<server> nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
   ```
 * **Resilience Profile:**
-  * **Zero Idle Overhead:** Connects on demand when `~/aim-stream` is accessed, and automatically unmounts after 60 seconds of inactivity (`x-systemd.idle-timeout=60`).
-  * **Portable Protection:** If `aim-book` disconnects, changes networks, or travels outside LAN/Tailscale, the `soft` mount with 3-second timeout (`timeo=30,retrans=2`) immediately fails gracefully with EIO rather than freezing the Openbox desktop session, file manager, or system shutdown.
-  * **Root Mapping:** Uses NFSv4 pseudo-root (`fsid=0`) so `aim-stream:/` directly targets `/home/ahmed/projects`.
+  * **Zero Idle Overhead:** Connects on demand when the mount directory is accessed, and automatically unmounts after 60 seconds of inactivity (`x-systemd.idle-timeout=60`).
+  * **Portable Protection:** If mobile clients disconnect, change Wi-Fi networks, or travel outside LAN/Tailscale, the `soft` mount with 3-second timeout (`timeo=30,retrans=2`) immediately fails gracefully with EIO rather than freezing the Openbox desktop session, file manager, or system shutdown.
+  * **Pseudo-Root Scoping (`fsid=0`):** By default, the server exports `~/projects` as the NFSv4 pseudo-root (`fsid=0`). This ensures clients mounting `<server>:/` access only project codebases while strictly isolating the server's private SSH keys (`~/.ssh`), credentials (`~/.gemini`), and desktop runtime state (`~/.config`, `.Xauthority`). The installer also supports custom or full-home scoping (`~`) on demand.
 
 ### Code & Execution Tier: Native Antigravity Remote Workflow
 * **IDE Engine:** Antigravity IDE (v1.107+) natively bundles Google's `antigravity-remote-openssh` extension.

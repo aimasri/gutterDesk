@@ -15,11 +15,19 @@ echo "--> Installing nfs-kernel-server..."
 sudo apt-get update
 sudo apt-get install -y nfs-kernel-server
 
-# 2. Verify export directory
+# 2. Resolve export directory
 TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 [ -z "$TARGET_HOME" ] && TARGET_HOME="$HOME"
-EXPORT_DIR="$TARGET_HOME/projects"
+
+# Accept custom directory argument, defaulting to $TARGET_HOME/projects
+EXPORT_DIR="${1:-$TARGET_HOME/projects}"
+EXPORT_DIR="${EXPORT_DIR/#\~/$TARGET_HOME}"
+
+echo "--> Target export directory: $EXPORT_DIR"
+if [ "$EXPORT_DIR" = "$TARGET_HOME" ]; then
+    echo "Notice: Exporting user root ($TARGET_HOME) includes dotfiles and ~/.ssh across the network."
+fi
 
 if [ ! -d "$EXPORT_DIR" ]; then
     echo "Creating export directory $EXPORT_DIR..."
