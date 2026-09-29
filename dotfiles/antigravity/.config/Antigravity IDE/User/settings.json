@@ -5,7 +5,6 @@
         "claude-gpt"
     ],
     "git.autofetch": true,
-    "files.autoSave": "onFocusChange",
     "window.dialogStyle": "custom",
     "files.simpleDialog.enable": true
 }

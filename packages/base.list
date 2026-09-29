@@ -37,7 +37,7 @@ galculator
 filezilla
 thunderbird
 gsimplecal
-sshfs
+nfs-common
 # Modern Lightweight Wireless Stack (iwd + iwgtk)
 iwd
 iwgtk

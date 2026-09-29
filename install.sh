@@ -33,13 +33,15 @@ fi
 # Whiptail checkbox menu if available
 if command -v whiptail >/dev/null; then
     CHOICES=$(whiptail --title "gutterDesk Module Selector" \
-        --checklist "Select the modules to activate on this machine:\n(Use Space to select, Enter to confirm)\n\nNote: If you made a previous private backup, run './connect.sh' first." 22 75 6 \
+        --checklist "Select the modules to activate on this machine:\n(Use Space to select, Enter to confirm)\n\nNote: If you made a previous private backup, run './connect.sh' first." 23 76 8 \
         "1" "Creative Suite (GIMP, Krita, Inkscape, Blender, etc.)" OFF \
         "2" "Banyan Trading Engine (Wine64, Python venv, MT5 daemon)" OFF \
         "3" "Banyan Trading Dashboard (C++ desktop monitoring UI)" OFF \
         "4" "Jellyfin Media Server & Tailscale Mesh Node" OFF \
         "5" "Web Development Stack (Apache2, Postgres, Redis, repos)" OFF \
         "6" "Torrent Machine (Transmission-gtk, UFW)" OFF \
+        "7" "NFSv4 Server (Export /home/ahmed/projects on aim-stream)" OFF \
+        "8" "NFSv4 Client Automount (Resilient systemd mount for aim-stream)" OFF \
         3>&1 1>&2 2>&3) || true
 else
     # Simple CLI fallback
@@ -50,6 +52,8 @@ else
     echo "  4) Jellyfin & Tailscale"
     echo "  5) Web Development Stack"
     echo "  6) Torrent Machine"
+    echo "  7) NFSv4 Server (aim-stream)"
+    echo "  8) NFSv4 Client Automount"
     read -p "Selection: " CHOICES
     CHOICES=$(echo "$CHOICES" | tr ',' ' ')
 fi
@@ -83,6 +87,12 @@ for choice in $CHOICES; do
             ;;
         6)
             "$SCRIPT_DIR/modules/module-torrent.sh"
+            ;;
+        7)
+            "$SCRIPT_DIR/modules/nfs-server.sh"
+            ;;
+        8)
+            "$SCRIPT_DIR/modules/nfs-client.sh"
             ;;
     esac
 done

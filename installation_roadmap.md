@@ -106,6 +106,8 @@ An interactive checkbox menu lets you provision specialized environments on dema
 * **[ ] 4. Jellyfin & Tailscale** (Media streaming + remote mesh node)
 * **[ ] 5. Web Development Stack** (Apache2, Postgres, Redis, vhosts)
 * **[ ] 6. Torrent Machine** (Transmission-gtk & UFW firewall configured for Tailscale/SSH)
+* **[ ] 7. NFSv4 Server** (Hardened NFSv4-only export of `/home/ahmed/projects` on `aim-stream`)
+* **[ ] 8. NFSv4 Client Automount** (Resilient systemd on-demand automount for client workstations)
 
 Press `Space` to select modules and `Enter` to install.
 

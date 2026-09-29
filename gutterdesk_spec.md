@@ -58,6 +58,14 @@ Activate only the modules required for the target machine:
   * *Purpose:* Isolated background file acquisition.
   * *Includes:* Transmission-gtk and UFW firewall rules (with automatic SSH and Tailscale mesh pass-through).
 
+* **[ ] Module 7: NFSv4 Server (`modules/nfs-server.sh`)**
+  * *Purpose:* Export central development projects (`/home/ahmed/projects`) from `aim-stream` to local LAN and Tailscale mesh.
+  * *Includes:* `nfs-kernel-server` locked to NFSv4-only (TCP port 2049, disabling NFSv2/v3 bloat and rpcbind dependencies), pseudo-root export (`fsid=0`), and UFW firewall rules for LAN (`192.168.1.0/24`) and Tailscale (`100.64.0.0/10`).
+
+* **[ ] Module 8: NFSv4 Client Automount (`modules/nfs-client.sh`)**
+  * *Purpose:* Configure resilient, on-demand network storage mounting on client workstations (`AiM-Home`, `aim-book`).
+  * *Includes:* `nfs-common`, `/etc/fstab` systemd automount configuration (`x-systemd.automount,x-systemd.idle-timeout=60,soft,timeo=30,retrans=2`), and GTK bookmarks for PCManFM.
+
 ---
 
 ## 4. Hardware & Power Management (Always-On Server Posture)
@@ -75,3 +83,38 @@ Activate only the modules required for the target machine:
 * `snapd` & `flatpak` (Unless explicitly enabled by a user module)
 * ModemManager & CUPS (Disabled by default)
 * Default Debian desktop tasks (Games, LibreOffice, generic metapackages)
+* SSHFS / Third-party file sync tunnels (Replaced by kernel-level NFSv4 automount and native SSH agent remoting)
+
+---
+
+## 6. Remote Development & Network Storage Architecture
+
+To eliminate configuration drift, file duplication, and background sync overhead across workstations, gutterDesk defines a strict, two-tier remote development topology across all machines:
+
+### Machine Topology & Responsibilities
+* **`aim-stream` (Central Workhorse Server):**
+  * Hosts all active development codebases in `/home/ahmed/projects`.
+  * Runs system services, runtime interpreters, database daemons (PostgreSQL, Redis, Apache2, Wine/MT5).
+  * Exports `/home/ahmed/projects` via a hardened NFSv4-only server (`modules/nfs-server.sh`) to the local LAN (`192.168.1.0/24`) and Tailscale subnet (`100.64.0.0/10`).
+* **`AiM-Home` (Primary Client Workstation) & `aim-book` (Portable Client Laptop):**
+  * Zero local duplicate development repos (`~/projects` is purged).
+  * Only contains the base OS repository and private backup at `~/gutterDesk`.
+  * Accesses remote projects via a resilient, on-demand systemd NFSv4 automount at `~/aim-stream`.
+
+### Storage Tier: Resilient Systemd NFSv4 Automount
+* **PCManFM & File Browsing:** Configured via native systemd automount in `/etc/fstab`:
+  ```fstab
+  aim-stream:/ /home/ahmed/aim-stream nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
+  ```
+* **Resilience Profile:**
+  * **Zero Idle Overhead:** Connects on demand when `~/aim-stream` is accessed, and automatically unmounts after 60 seconds of inactivity (`x-systemd.idle-timeout=60`).
+  * **Portable Protection:** If `aim-book` disconnects, changes networks, or travels outside LAN/Tailscale, the `soft` mount with 3-second timeout (`timeo=30,retrans=2`) immediately fails gracefully with EIO rather than freezing the Openbox desktop session, file manager, or system shutdown.
+  * **Root Mapping:** Uses NFSv4 pseudo-root (`fsid=0`) so `aim-stream:/` directly targets `/home/ahmed/projects`.
+
+### Code & Execution Tier: Native Antigravity Remote Workflow
+* **IDE Engine:** Antigravity IDE (v1.107+) natively bundles Google's `antigravity-remote-openssh` extension.
+* **Prohibited Patterns:** No third-party extensions, external SSHFS mounts for coding, Mutagen daemons, or custom file-sync tunnels are permitted.
+* **Operational Rules:**
+  1. **Casual File Browsing & Asset Viewing:** Performed in PCManFM via `~/aim-stream` through the resilient NFS automount.
+  2. **Code Editing, Debugging & Execution:** Performed inside Antigravity IDE by connecting directly via `Connect to SSH Host...` -> `aim-stream`. The IDE's remote agent executes language servers, linters, terminals, and processes directly on `aim-stream`.
+  3. **Antigravity 2.0 Autonomous Agent Daemon:** The background daemon on `aim-stream` is accessed and managed directly via `antigravity.google` Remote Control.
