@@ -305,9 +305,10 @@ if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then
     which dconf >/dev/null 2>&1 && run_as_target dconf load /org/guake/ < "$TARGET_HOME/.config/guake/guake-preferences.ini" 2>/dev/null || true
 fi
 
-# Ensure helper scripts have execute permissions
 chmod +x "$TARGET_HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
 chmod +x "$TARGET_HOME/.local/bin/gutterdesk-first-run.sh" 2>/dev/null || true
+chmod +x "$TARGET_HOME/.local/bin/gutterdesk-rotator" 2>/dev/null || true
+[ -f "$TARGET_HOME/.local/bin/gutterdesk-rotator" ] && sudo ln -sf "$TARGET_HOME/.local/bin/gutterdesk-rotator" /usr/local/bin/gutterdesk-rotator
 chmod +x "$TARGET_HOME/.config/openbox/autostart" 2>/dev/null || true
 
 # 7. Set Default Applications
