@@ -6,5 +6,7 @@
     ],
     "git.autofetch": true,
     "window.dialogStyle": "custom",
-    "files.simpleDialog.enable": true
+    "files.simpleDialog.enable": true,
+    "window.menuBarVisibility": "compact",
+    "workbench.auxiliaryActivityBar.location": "default"
 }
