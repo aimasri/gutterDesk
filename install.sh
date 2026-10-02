@@ -148,12 +148,12 @@ case "$ROLE" in
     client)
         echo ""
         echo "==> Configuring Machine as Client Workstation (Target Server: $SERVER_HOST)..."
-        "$SCRIPT_DIR/modules/nfs-client.sh" "$SERVER_HOST"
+        "$SCRIPT_DIR/modules/module-nfs-client.sh" "$SERVER_HOST"
         ;;
     server)
         echo ""
         echo "==> Configuring Machine as Central Development Server (Export: $SERVER_EXPORT_DIR)..."
-        "$SCRIPT_DIR/modules/nfs-server.sh" "$SERVER_EXPORT_DIR"
+        "$SCRIPT_DIR/modules/module-nfs-server.sh" "$SERVER_EXPORT_DIR"
         ;;
     standalone)
         echo "==> Machine configured as Standalone."

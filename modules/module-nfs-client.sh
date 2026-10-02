@@ -1,17 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==============================================================================
-# gutterDesk: Resilient NFSv4 Client Automount Module (AiM-Home & aim-book)
-# ==============================================================================
-# Configures a native, resilient systemd automount in /etc/fstab for
-# aim-stream:/ -> /home/ahmed/aim-stream.
-#
-# Features:
-# - Connects on demand when accessed by PCManFM, CLI, or tools.
-# - Automatically unmounts after 60 seconds of inactivity.
-# - Soft timeout (3s, 2 retries) prevents UI/boot hangs when offline.
+# Title:           module-nfs-client.sh
+# Purpose:         Configures Resilient On-Demand Systemd NFSv4 Automount
+# Why This Design: Client workstations (AiM-Home, aim-book) do not maintain duplicate
+#                  local codebases. This module adds a native systemd automount entry
+#                  to /etc/fstab with soft failure semantics (timeo=30, retrans=2)
+#                  and idle timeout (60s), ensuring mobile clients never hang during
+#                  network handoffs or offline sessions.
+# Privilege:       Root (Requires sudo for nfs-common, /etc/fstab & daemon-reload)
+# Subsystems:      nfs-common, /etc/fstab, systemd automount, PCManFM bookmarks
+# Idempotency:     Idempotently replaces server automount line in /etc/fstab.
 # ==============================================================================
 
-set -e
+set -euo pipefail
 
 TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
@@ -79,7 +80,7 @@ if ping -c 1 -W 2 "$SERVER_HOST" >/dev/null 2>&1; then
         ls -la "$MOUNT_POINT"
     else
         echo "Notice: Host is reachable but NFS export could not be accessed."
-        echo "Ensure 'modules/nfs-server.sh' has been executed on $SERVER_HOST."
+        echo "Ensure 'modules/module-nfs-server.sh' has been executed on $SERVER_HOST."
     fi
 else
     echo "Notice: Host '$SERVER_HOST' is currently offline or unreachable."

@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""
-gutterdesk-rotator
-------------------
-Automatic screen & touch rotation daemon for gutterDesk on 2-in-1 laptops
-(Dell Inspiron 2-in-1, Lenovo Yoga, HP Envy x360, etc.)
-
-Features:
-- Interfaces with iio-sensor-proxy via D-Bus (zero CPU polling)
-- Rotates primary display via xrandr
-- Transforms touchscreen & stylus coordinate mapping via xinput
-- Automatically updates wallpaper via auto-wallpaper.sh
-- Refreshes Tint2 panel dimensions on rotation
-- Supports rotation lock toggle and manual rotation overrides
-"""
+# ==============================================================================
+# Title:           gutterdesk-rotator
+# Purpose:         Automatic Screen, Digitizer & Touch Rotation Daemon
+# Why This Design: 2-in-1 laptops and convertible tablets require real-time
+#                  synchronization between display orientation, input device
+#                  Coordinate Transformation Matrices (CTM), and wallpaper aspect
+#                  ratios. This daemon listens to iio-sensor-proxy over D-Bus
+#                  (zero polling overhead) and applies atomic xrandr/xinput transforms.
+# Privilege:       Target User (X11 session context)
+# Subsystems:      iio-sensor-proxy, D-Bus, X11 (xrandr, xinput), Tint2, nitrogen
+# Idempotency:     Orientation transforms check current state before executing;
+#                  repeated events with identical state are discarded immediately.
+# ==============================================================================
 
 import sys
 import os
@@ -80,7 +79,6 @@ def get_current_rotation(display):
         out = subprocess.check_output(["xrandr", "--query"], text=True)
         for line in out.splitlines():
             if line.startswith(display + " "):
-                # Only check tokens before the '(' which contains supported capabilities
                 before_paren = line.split("(")[0].split()
                 for mode in ["inverted", "left", "right"]:
                     if mode in before_paren:
@@ -99,13 +97,10 @@ def get_touch_devices():
         for name in out.splitlines():
             name_clean = name.strip()
             name_lower = name_clean.lower()
-            # Look for touchscreen or stylus keywords, or known Dell 2-in-1 touchscreen vendor ID (04f3:2c62)
             if any(k in name_lower for k in ["touchscreen", "stylus", "pen", "04f3:2c62", "wacom", "elan", "atmel"]):
-                # Exclude standard touchpads and keyboards
                 if "touchpad" not in name_lower and "keyboard" not in name_lower:
                     devices.append(name_clean)
     except FileNotFoundError:
-        # xinput not installed
         pass
     except Exception as e:
         print(f"[gutterdesk-rotator] Error detecting touch devices: {e}", file=sys.stderr)
@@ -116,7 +111,6 @@ def apply_rotation(target_xrandr_rotation, matrix=None):
     display = get_primary_display()
     current = get_current_rotation(display)
     if current == target_xrandr_rotation:
-        # Already in requested rotation
         return
 
     print(f"[gutterdesk-rotator] Rotating display {display} to {target_xrandr_rotation}...")
@@ -132,10 +126,8 @@ def apply_rotation(target_xrandr_rotation, matrix=None):
     touch_devices = get_touch_devices()
     for dev in touch_devices:
         try:
-            # First try map-to-output which automatically calculates exact matrix
             ret = subprocess.run(["xinput", "map-to-output", dev, display], capture_output=True)
             if ret.returncode != 0 and matrix:
-                # Fallback to direct matrix property
                 subprocess.run(
                     ["xinput", "set-prop", dev, "Coordinate Transformation Matrix"] + matrix.split(),
                     check=False,
@@ -143,13 +135,15 @@ def apply_rotation(target_xrandr_rotation, matrix=None):
         except Exception as e:
             print(f"[gutterdesk-rotator] Failed to configure input {dev}: {e}", file=sys.stderr)
 
-    # 3. Update wallpaper if auto-wallpaper.sh is present
-    auto_wp = os.path.expanduser("~/.local/bin/auto-wallpaper.sh")
-    if os.path.isfile(auto_wp) and os.access(auto_wp, os.X_OK):
-        try:
-            subprocess.Popen([auto_wp])
-        except Exception:
-            pass
+    # 3. Update wallpaper via auto-wallpaper if present
+    for wp_cmd in ["auto-wallpaper", "auto-wallpaper.sh"]:
+        auto_wp = shutil.which(wp_cmd) or os.path.expanduser(f"~/.local/bin/{wp_cmd}")
+        if auto_wp and os.path.isfile(auto_wp) and os.access(auto_wp, os.X_OK):
+            try:
+                subprocess.Popen([auto_wp])
+                break
+            except Exception:
+                pass
 
     # 4. Refresh tint2 panel geometry
     try:
@@ -189,7 +183,6 @@ def cycle_rotation():
     except ValueError:
         next_mode = "normal"
 
-    # Find matrix for this mode
     matrix = "1 0 0 0 1 0 0 0 1"
     for conf in ORIENTATION_CONFIG.values():
         if conf["xrandr"] == next_mode:
@@ -235,17 +228,14 @@ def run_daemon():
         props_iface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
         sensor_iface = dbus.Interface(proxy, "net.hadess.SensorProxy")
 
-        # Claim the accelerometer to initiate hardware polling
         sensor_iface.ClaimAccelerometer()
         print("[gutterdesk-rotator] Accelerometer claimed successfully.")
 
-        # Read initial orientation
         initial = str(props_iface.Get("net.hadess.SensorProxy", "AccelerometerOrientation"))
         print(f"[gutterdesk-rotator] Initial orientation: {initial}")
         if initial != "undefined":
             handle_orientation_change(initial)
 
-        # Listen for orientation change signals
         def on_properties_changed(interface_name, changed_properties, invalidated_properties):
             if interface_name == "net.hadess.SensorProxy" and "AccelerometerOrientation" in changed_properties:
                 orientation = str(changed_properties["AccelerometerOrientation"])
@@ -315,7 +305,6 @@ def main():
         elif cmd in ["--cycle", "cycle", "toggle", "--toggle"]:
             cycle_rotation()
         elif cmd in ["normal", "inverted", "left", "right"]:
-            # Lookup matrix
             matrix = "1 0 0 0 1 0 0 0 1"
             for conf in ORIENTATION_CONFIG.values():
                 if conf["xrandr"] == cmd:

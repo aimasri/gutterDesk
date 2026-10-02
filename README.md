@@ -78,22 +78,45 @@ cd ~/gutterDesk/backup && ./sync.sh
 
 ```
 gutterDesk/
-├── bootstrap.sh                 # Universal Base OS bootstrap script
-├── install.sh                   # Interactive modular checkbox installer
-├── gutterdesk_spec.md           # Architecture and technical specification
-├── installation_roadmap.md      # Comprehensive step-by-step deployment guide
-├── assets/                      # Vector and raster logo and icon assets
-│   ├── icons/                   # Brand SVGs and PNG icons (16px to 512px)
-│   └── logo/                    # Official horizontal, vertical, and dark logos
-├── dotfiles/                    # Declarative dotfile hierarchies
-│   ├── antigravity/             # Antigravity IDE configuration (dialog rules)
+├── bootstrap.sh                 # Staged orchestrator executing core/00 through core/07
+├── install.sh                   # Interactive architectural role & capability installer
+├── docs/                        # Centralized Distro Documentation Suite
+│   ├── AGENTS.md                # AI Agent & engineering protocols (cluster safety)
+│   ├── ARCHITECTURE.md          # 2-tier topology, resilient NFSv4 & OS design
+│   ├── HARDWARE_POWER.md        # Battery threshold, lid switch & screen rotator
+│   ├── DESKTOP_ENVIRONMENT.md   # Openbox, Tint2, Picom, Midnight Forest & menus
+│   ├── MODULES.md               # Capability module catalog & specifications
+│   └── RUNBOOK.md               # Bare-metal setup, cluster sync & troubleshooting
+├── core/                        # Staged Modular Bootstrap Engine
+│   ├── 00-repos.sh              # Debian online mirrors & GPG keyrings
+│   ├── 01-base-packages.sh      # Universal Base packages (Openbox, Tint2, iwd)
+│   ├── 02-themes-branding.sh    # Wallpapers, GTK, icons & desktop entries
+│   ├── 03-boot-login.sh         # Plymouth boot splash, GRUB & LightDM greeter
+│   ├── 04-network-iwd.sh        # Modern wireless stack (iwd + iwgtk) migration
+│   ├── 05-dotfiles.sh           # Pure declarative dotfiles atomic symlinking
+│   ├── 06-desktop-tools.sh      # Utilities, gutter family & Antigravity suite
+│   └── 07-hardware-power.sh     # Lid switch, battery threshold & permissions
+├── bin/                         # Centralized Distro System & User Utilities
+│   ├── gutterdesk-menu          # Modular Openbox menu compiler & toggler
+│   ├── gutterdesk-rotator       # Accelerometer & touchscreen orientation daemon
+│   ├── auto-wallpaper.sh        # Multi-head orientation-matched wallpaper engine
+│   ├── tint2-network.sh         # Zero-overhead live Wi-Fi telemetry executor
+│   └── gutterdesk-first-run.sh  # First-boot interactive setup assistant
+├── dotfiles/                    # Pure Declarative Configuration Hierarchies
 │   ├── openbox/                 # Window manager configs (menu.template.xml, menu.d/, rc.xml, autostart)
-│   ├── tint2/                   # Status bar config and tint2-network.sh executor
+│   ├── tint2/                   # Status bar configuration (tint2rc)
 │   ├── iwgtk/                   # Wi-Fi indicator obsidian theme config
 │   ├── pcmanfm/                 # Dual-pane file manager layout & bookmarks
 │   └── ...                      # GTK, Guake, volumeicon, and gsimplecal dotfiles
-├── keys/                        # Bundled GPG keys for Antigravity & Chrome repositories
-├── modules/                     # Standalone module provisioning scripts
+├── modules/                     # Standardized Capability Modules
+│   ├── module-creative.sh       # Digital illustration, 3D and video toolchains
+│   ├── module-banyan-engine.sh  # Wine64, MT5, Python bridge & headless daemon
+│   ├── module-banyan-dashboard.sh # C++/Qt6 desktop telemetry UI
+│   ├── module-media-tailscale.sh # Jellyfin transcoding & WireGuard mesh node
+│   ├── module-webstack.sh       # Apache2, PostgreSQL, Redis & vhosts
+│   ├── module-torrent.sh        # Transmission daemon & UFW firewall
+│   ├── module-nfs-server.sh     # Hardened NFSv4-only pseudo-root export
+│   └── module-nfs-client.sh     # Resilient systemd on-demand automount
 ├── packages/                    # Declarative package lists (base, creative, web, etc.)
 ├── scripts/                     # Asset and wallpaper generation utilities
 ├── themes/                      # LightDM login greeter and Plymouth boot splash themes

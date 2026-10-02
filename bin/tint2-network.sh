@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# tint2-network.sh: Lightweight Network & Wi-Fi Tray Indicator for Tint2
-# ------------------------------------------------------------------------------
-# Queries iwd (Intel Wireless Daemon) and sysfs to display connection status
-# and signal strength in Tint2's executor plugin without external daemons.
+# Title:           tint2-network.sh
+# Purpose:         Zero-Overhead Live Network & Wi-Fi Telemetry Executor for Tint2
+# Why This Design: Traditional desktop network applets (e.g. nm-applet) run continuous
+#                  background Python/GTK daemons consuming 30-50MB RAM. This script
+#                  is invoked at 3-second intervals by Tint2, querying Linux sysfs
+#                  carrier state and iwd station telemetry via iwctl directly,
+#                  rendering Papirus-Dark signal icons with zero idle memory overhead.
+# Privilege:       Target User (Unprivileged executor)
+# Subsystems:      iwd (Intel Wireless Daemon), Linux sysfs (/sys/class/net), Tint2
+# Idempotency:     Pure read-only query; emits stdout icon path and stderr tooltip.
 # ==============================================================================
+
+set -euo pipefail
 
 ICON_DIR="/usr/share/icons/Papirus-Dark/24x24/panel"
 
 # 1. Check Wired interfaces first (carrier up and operstate up)
 for eth in /sys/class/net/en* /sys/class/net/eth*; do
-    if [ -d "$eth" ] && [ "$(cat "$eth/carrier" 2>/dev/null)" = "1" ] && [ "$(cat "$eth/operstate" 2>/dev/null)" = "up" ]; then
+    if [ -d "$eth" ] && [ "$(cat "$eth/carrier" 2>/dev/null || echo 0)" = "1" ] && [ "$(cat "$eth/operstate" 2>/dev/null || echo down)" = "up" ]; then
         iface=$(basename "$eth")
-        ip_addr=$(ip -4 -br addr show "$iface" 2>/dev/null | awk '{print $3}')
+        ip_addr=$(ip -4 -br addr show "$iface" 2>/dev/null | awk '{print $3}' || echo "")
         echo "$ICON_DIR/network-wired-activated.svg"
         echo ""
         echo "Wired Network: $iface ($ip_addr)" >&2
@@ -21,15 +29,15 @@ for eth in /sys/class/net/en* /sys/class/net/eth*; do
 done
 
 # 2. Check Wireless via iwd (iwctl)
-wlan=$(ls /sys/class/net 2>/dev/null | grep -E '^wl' | head -n1)
+wlan=$(ls /sys/class/net 2>/dev/null | grep -E '^wl' | head -n1 || echo "")
 
 if [ -n "$wlan" ]; then
-    show_out=$(iwctl station "$wlan" show 2>/dev/null)
-    state=$(echo "$show_out" | grep -m1 "State" | awk '{print $2}')
+    show_out=$(iwctl station "$wlan" show 2>/dev/null || true)
+    state=$(echo "$show_out" | grep -m1 "State" | awk '{print $2}' || echo "")
     
     if [ "$state" = "connected" ]; then
-        ssid=$(echo "$show_out" | grep -m1 "Connected network" | sed 's/.*Connected network *//; s/ *$//')
-        rssi=$(echo "$show_out" | grep -m1 "RSSI" | awk '{print $2}')
+        ssid=$(echo "$show_out" | grep -m1 "Connected network" | sed 's/.*Connected network *//; s/ *$//' || echo "Connected")
+        rssi=$(echo "$show_out" | grep -m1 "RSSI" | awk '{print $2}' || echo "-60")
         
         # Select icon based on signal level (RSSI in dBm)
         icon="$ICON_DIR/network-wireless-connected-100.svg"
@@ -59,7 +67,8 @@ if [ -n "$wlan" ]; then
     fi
 fi
 
-# 3. Disconnected / Offline
-echo "$ICON_DIR/network-wireless-disconnected.svg"
+# 3. Disconnected / Offline state
+echo "$ICON_DIR/network-wireless-offline.svg"
 echo ""
 echo "Network: Disconnected" >&2
+exit 0

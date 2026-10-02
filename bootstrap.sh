@@ -1,614 +1,142 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# ==============================================================================
+# Title:           bootstrap.sh
+# Purpose:         Universal Base OS Bootstrap Orchestrator for gutterDesk (Debian 13)
+# Why This Design: Replaces monolithic procedural scripting with a modular, staged
+#                  architecture under core/. Allows executing full end-to-end
+#                  provisioning on fresh installs, or running targeted individual
+#                  stages (e.g. dotfiles, desktop tools, themes) during cluster sync.
+# Privilege:       Root (Requires sudo)
+# Subsystems:      Delegates to core/00 through core/07
+# Idempotency:     Every underlying core stage is strictly idempotent.
+# ==============================================================================
+
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$SCRIPT_DIR/core"
 
-echo "=========================================================="
-echo "    gutterDesk: Universal Base Bootstrap (Debian 13)       "
-echo "=========================================================="
+STAGES=(
+    "00-repos.sh:System repositories, online mirrors & GPG keyrings"
+    "01-base-packages.sh:Universal Base packages (Openbox, Tint2, Guake, iwd)"
+    "02-themes-branding.sh:Wallpapers, Midnight Forest GTK, icons & desktop entries"
+    "03-boot-login.sh:Plymouth boot splash, GRUB & LightDM greeter"
+    "04-network-iwd.sh:Modern wireless stack (iwd + iwgtk) & credential migration"
+    "05-dotfiles.sh:Pure declarative dotfiles atomic symlinking"
+    "06-desktop-tools.sh:Distro utilities, gutter family & Antigravity suite"
+    "07-hardware-power.sh:Lid switch, battery threshold daemon & permissions"
+)
 
-# 1. Require sudo privileges & resolve target user
+show_help() {
+    echo "=========================================================="
+    echo "    gutterDesk: Universal Base Bootstrap (Debian 13)       "
+    echo "=========================================================="
+    echo "Usage: sudo ./bootstrap.sh [OPTIONS] [STAGE]"
+    echo ""
+    echo "Options:"
+    echo "  --list, -l          List all available bootstrap stages"
+    echo "  --help, -h          Show this help message"
+    echo ""
+    echo "Selective Stage Execution:"
+    echo "  sudo ./bootstrap.sh <stage-name-or-prefix>"
+    echo "  Examples:"
+    echo "    sudo ./bootstrap.sh 05              (Runs 05-dotfiles.sh)"
+    echo "    sudo ./bootstrap.sh dotfiles        (Runs 05-dotfiles.sh)"
+    echo "    sudo ./bootstrap.sh themes          (Runs 02-themes-branding.sh)"
+    echo "    sudo ./bootstrap.sh tools           (Runs 06-desktop-tools.sh)"
+    echo ""
+    echo "Default (no arguments): Runs all stages sequentially from 00 to 07."
+    echo "=========================================================="
+}
+
+list_stages() {
+    echo "Available Bootstrap Stages in $CORE_DIR:"
+    for item in "${STAGES[@]}"; do
+        stage_file="${item%%:*}"
+        stage_desc="${item#*:}"
+        echo "  - ${stage_file%.sh} : $stage_desc"
+    done
+}
+
+# Allow unprivileged inspection of stages and help
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    show_help
+    exit 0
+fi
+
+if [ "${1:-}" = "--list" ] || [ "${1:-}" = "-l" ]; then
+    list_stages
+    exit 0
+fi
+
+# Require administrative privileges for actual execution
 if [ "$EUID" -ne 0 ]; then
     echo "Requesting administrative privileges..."
     sudo -v
 fi
 
 TARGET_USER="${SUDO_USER:-$USER}"
-TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6 2>/dev/null || echo "$HOME")
 [ -z "$TARGET_HOME" ] && TARGET_HOME="$HOME"
 
-echo "Target user: $TARGET_USER ($TARGET_HOME)"
-
-run_as_target() {
-    if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ] && [ "$TARGET_USER" != "root" ]; then
-        sudo -u "$TARGET_USER" -H "$@"
-    else
-        "$@"
+run_stage() {
+    local script_file="$1"
+    local stage_path="$CORE_DIR/$script_file"
+    
+    if [ ! -f "$stage_path" ]; then
+        echo "Error: Stage script not found at $stage_path" >&2
+        exit 1
     fi
+    
+    echo ""
+    echo "=========================================================="
+    echo "  Running Stage: $script_file"
+    echo "=========================================================="
+    bash "$stage_path"
 }
 
-# 2. Install repository keys & sources
-echo "[1/8] Configuring system repositories..."
-sudo mkdir -p /etc/apt/keyrings /usr/share/keyrings
-
-# Disable CD-ROM / USB netinst sources that block online package fetching
-if [ -f /etc/apt/sources.list ]; then
-    sudo sed -i 's/^[[:space:]]*deb cdrom:/# deb cdrom:/g' /etc/apt/sources.list
-fi
-if [ -f /etc/apt/sources.list.d/debian.sources ]; then
-    sudo sed -i 's/URIs:[[:space:]]*cdrom:/Enabled: no\n# URIs: cdrom:/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || true
-fi
-
-# Ensure official Debian online mirrors are configured
-CODENAME=$(grep -oP '^VERSION_CODENAME=\K\w+' /etc/os-release 2>/dev/null || echo "trixie")
-HAS_ONLINE_MIRROR=$(grep -rhE '(deb\s+http(s)?://deb\.debian\.org|URIs:\s*http(s)?://deb\.debian\.org)' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null || true)
-
-if [ -z "$HAS_ONLINE_MIRROR" ]; then
-    echo "No active deb.debian.org mirror detected. Configuring official $CODENAME repositories in /etc/apt/sources.list.d/debian.sources..."
-    [ -f /etc/apt/sources.list.d/debian.sources ] && sudo cp /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list.d/debian.sources.bak 2>/dev/null || true
-    sudo tee /etc/apt/sources.list.d/debian.sources >/dev/null << EOF
-Types: deb
-URIs: http://deb.debian.org/debian/
-Suites: $CODENAME $CODENAME-updates
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-
-Types: deb
-URIs: http://security.debian.org/debian-security/
-Suites: $CODENAME-security
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-EOF
-fi
-
-# Remove obsolete/abandoned antigravity APT list if present
-sudo rm -f /etc/apt/sources.list.d/antigravity.list
-
-if [ -f "$SCRIPT_DIR/keys/google-chrome.gpg" ]; then
-    sudo install -m 0644 "$SCRIPT_DIR/keys/google-chrome.gpg" /usr/share/keyrings/google-chrome.gpg
-    echo "deb [signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome-stable/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list >/dev/null
-fi
-
-# 3. Update APT and install Universal Base packages
-echo "[2/8] Installing Universal Base packages..."
-sudo apt-get update
-
-PACKAGES_TO_INSTALL=()
-for pkg in $(grep -v '^#' "$SCRIPT_DIR/packages/base.list" | tr '\n' ' '); do
-    if apt-cache show "$pkg" >/dev/null 2>&1; then
-        PACKAGES_TO_INSTALL+=("$pkg")
-    elif [ "$pkg" = "nitrogen" ]; then
-        echo "Notice: Package 'nitrogen' not found in active repositories; falling back to 'feh'..."
-        PACKAGES_TO_INSTALL+=("feh")
-    else
-        echo "Notice: Package '$pkg' not found in active repositories, skipping..."
-    fi
-done
-
-sudo apt-get install -y "${PACKAGES_TO_INSTALL[@]}"
-
-# Remove redundant google-chrome.list if the package created google-chrome.sources (avoids duplicate warnings)
-if [ -f /etc/apt/sources.list.d/google-chrome.sources ] && [ -f /etc/apt/sources.list.d/google-chrome.list ]; then
-    sudo rm -f /etc/apt/sources.list.d/google-chrome.list
-fi
-
-# 4. Deploy Wallpapers & Brand Icons (User & System-wide)
-echo "[3/8] Deploying wallpaper, branding & system themes..."
-sudo mkdir -p "$TARGET_HOME/.local/share/backgrounds" "$TARGET_HOME/.local/share/icons"
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local" 2>/dev/null || true
-run_as_target cp "$SCRIPT_DIR/wallpapers/"*.png "$TARGET_HOME/.local/share/backgrounds/" 2>/dev/null || true
-run_as_target cp -r "$SCRIPT_DIR/assets/icons/"* "$TARGET_HOME/.local/share/icons/" 2>/dev/null || true
-
-# System-wide assets for display manager, boot splash and desktop environments
-sudo mkdir -p /usr/share/backgrounds/gutterdesk /usr/share/icons/gutterdesk /usr/share/themes/gutterdesk
-sudo cp "$SCRIPT_DIR/wallpapers/"*.png /usr/share/backgrounds/gutterdesk/ 2>/dev/null || true
-sudo cp -r "$SCRIPT_DIR/assets/icons/"* /usr/share/icons/gutterdesk/ 2>/dev/null || true
-sudo cp -r "$SCRIPT_DIR/dotfiles/themes/.themes/gutterdesk"/* /usr/share/themes/gutterdesk/ 2>/dev/null || true
-
-# Install icons to /usr/share/pixmaps/ and /usr/share/icons/hicolor/
-echo "Deploying system-wide icons..."
-sudo mkdir -p /usr/share/pixmaps
-for app in gutterdesk gutterdeck guttertab; do
-    if [ -f "$SCRIPT_DIR/assets/icons/${app}.svg" ]; then
-        sudo cp "$SCRIPT_DIR/assets/icons/${app}.svg" /usr/share/pixmaps/
-        sudo mkdir -p /usr/share/icons/hicolor/scalable/apps
-        sudo cp "$SCRIPT_DIR/assets/icons/${app}.svg" "/usr/share/icons/hicolor/scalable/apps/${app}.svg"
-    fi
-    for sz in 16 24 32 48 64 128 256 512; do
-        if [ -f "$SCRIPT_DIR/assets/icons/${app}_${sz}.png" ]; then
-            sudo mkdir -p "/usr/share/icons/hicolor/${sz}x${sz}/apps"
-            sudo cp "$SCRIPT_DIR/assets/icons/${app}_${sz}.png" "/usr/share/icons/hicolor/${sz}x${sz}/apps/${app}.png"
-            if [ "$sz" -eq 48 ]; then
-                sudo cp "$SCRIPT_DIR/assets/icons/${app}_48.png" "/usr/share/pixmaps/${app}.png"
-            fi
+if [ -n "${1:-}" ]; then
+    TARGET_ARG="${1#--stage=}"
+    TARGET_ARG="${TARGET_ARG#--stage }"
+    
+    MATCHED=""
+    for item in "${STAGES[@]}"; do
+        stage_file="${item%%:*}"
+        if [[ "$stage_file" == *"$TARGET_ARG"* ]] || [[ "${stage_file%.sh}" == *"$TARGET_ARG"* ]]; then
+            MATCHED="$stage_file"
+            break
         fi
     done
-done
-which gtk-update-icon-cache >/dev/null 2>&1 && sudo gtk-update-icon-cache -f -q /usr/share/icons/hicolor 2>/dev/null || true
-
-# Copy desktop entries to /usr/share/applications/
-echo "Deploying system desktop entries..."
-sudo mkdir -p /usr/share/applications
-sudo cp "$SCRIPT_DIR/dotfiles/gutterdeck/.local/share/applications/gutterdeck.desktop" /usr/share/applications/ 2>/dev/null || true
-sudo cp "$SCRIPT_DIR/dotfiles/guttertab/.local/share/applications/guttertab.desktop" /usr/share/applications/ 2>/dev/null || true
-which update-desktop-database >/dev/null 2>&1 && sudo update-desktop-database /usr/share/applications 2>/dev/null || true
-
-# 5. Configure Boot Splash (Plymouth) & Login Greeter (LightDM)
-echo "[4/8] Configuring boot splash (Plymouth) & login greeter (LightDM)..."
-
-# Deploy Plymouth Theme
-if [ -d "$SCRIPT_DIR/themes/plymouth/gutterdesk" ]; then
-    echo "Installing gutterDesk Plymouth theme..."
-    sudo mkdir -p /usr/share/plymouth/themes/gutterdesk
-    sudo cp -r "$SCRIPT_DIR/themes/plymouth/gutterdesk/"* /usr/share/plymouth/themes/gutterdesk/
-    if [ -x /usr/sbin/plymouth-set-default-theme ]; then
-        echo "Activating gutterDesk Plymouth boot splash..."
-        sudo /usr/sbin/plymouth-set-default-theme gutterdesk -R 2>/dev/null || true
-    fi
-fi
-
-# Ensure 'splash' is in GRUB_CMDLINE_LINUX_DEFAULT
-if [ -f /etc/default/grub ]; then
-    if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
-        if ! grep -q 'splash' /etc/default/grub; then
-            echo "Enabling graphical boot splash in /etc/default/grub..."
-            sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 splash"/' /etc/default/grub
-            sudo sed -i 's/  */ /g' /etc/default/grub
-            which update-grub >/dev/null 2>&1 && sudo update-grub || true
-        fi
-    fi
-fi
-
-# Deploy LightDM Greeter Configuration
-sudo mkdir -p /etc/lightdm/lightdm-gtk-greeter.conf.d
-if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
-    sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf
-    sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf.d/99_gutterdesk.conf
-fi
-sudo systemctl enable lightdm 2>/dev/null || true
-sudo systemctl enable bluetooth 2>/dev/null || true
-sudo systemctl enable ssh 2>/dev/null || true
-sudo systemctl enable --now systemd-timesyncd 2>/dev/null || true
-
-
-# Configure modern lightweight wireless stack (iwd)
-echo "Configuring iwd (Intel Wireless Daemon)..."
-sudo mkdir -p /etc/iwd /var/lib/iwd
-cat << 'EOF' | sudo tee /etc/iwd/main.conf >/dev/null
-[General]
-EnableNetworkConfiguration=true
-
-[Network]
-NameResolvingService=resolvconf
-EOF
-
-# Deploy system-wide iwgtk configuration
-if [ -f "$SCRIPT_DIR/dotfiles/iwgtk/.config/iwgtk.conf" ]; then
-    sudo cp "$SCRIPT_DIR/dotfiles/iwgtk/.config/iwgtk.conf" /etc/iwgtk.conf
-fi
-
-# Unblock Wi-Fi hardware/software switches
-which rfkill >/dev/null 2>&1 && sudo rfkill unblock wifi 2>/dev/null || true
-
-# Add target user to netdev group for unprivileged network control
-sudo usermod -a -G netdev "$TARGET_USER" 2>/dev/null || true
-
-# Migrate existing netinst Wi-Fi credentials into iwd profile
-echo "Scanning for netinst Wi-Fi credentials to migrate to iwd..."
-python3 - << 'PYEOF'
-import os, glob, re
-
-search_files = [
-    '/etc/network/interfaces',
-    '/etc/network/interfaces.bak',
-] + glob.glob('/etc/network/interfaces.d/*') + glob.glob('/etc/wpa_supplicant/*.conf')
-
-found_networks = []
-
-for path in search_files:
-    if os.path.isfile(path):
-        try:
-            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                
-                # Check wpa-ssid and wpa-psk/wpa-passphrase
-                m_ssid = re.search(r'wpa-ssid\s+["\']?([^"\'\r\n]+)', content)
-                m_psk = re.search(r'wpa-(?:psk|passphrase)\s+["\']?([^"\'\r\n]+)', content)
-                if m_ssid and m_psk:
-                    s = m_ssid.group(1).strip().strip('"\'')
-                    p = m_psk.group(1).strip().strip('"\'')
-                    if s and p:
-                        found_networks.append((s, p))
-                
-                # Check network={ ssid=".." psk=".." }
-                for block in re.finditer(r'network\s*=\s*\{([^}]+)\}', content):
-                    b = block.group(1)
-                    s = re.search(r'ssid\s*=\s*["\']?([^"\'\r\n]+)', b)
-                    p = re.search(r'psk\s*=\s*["\']?([^"\'\r\n]+)', b)
-                    if s and p:
-                        found_networks.append((s.group(1).strip().strip('"\''), p.group(1).strip().strip('"\'')))
-        except Exception:
-            pass
-
-def encode_iwd_filename(ssid):
-    res = []
-    for b in ssid.encode('utf-8'):
-        c = chr(b)
-        if c.isalnum() or c in ('_', '-', '.'):
-            res.append(c)
-        else:
-            res.append(f"={b:02x}")
-    return "".join(res) + ".psk"
-
-migrated = 0
-os.makedirs('/var/lib/iwd', exist_ok=True)
-for ssid, psk in set(found_networks):
-    is_hex = len(psk) == 64 and all(c in '0123456789abcdefABCDEF' for c in psk)
-    sec_key = 'PreSharedKey' if is_hex else 'Passphrase'
-    target_file = os.path.join('/var/lib/iwd', encode_iwd_filename(ssid))
-    try:
-        with open(target_file, 'w', encoding='utf-8') as f:
-            f.write(f'[Security]\n{sec_key}={psk}\n')
-        os.chmod(target_file, 0o600)
-        print(f"✓ Migrated Wi-Fi credentials for '{ssid}' into {target_file}")
-        migrated += 1
-    except Exception as e:
-        print(f"Notice: Could not write iwd profile for '{ssid}': {e}")
-
-if migrated == 0:
-    print("Notice: No saved Wi-Fi credentials found to migrate. Connect via iwgtk on first desktop login.")
-PYEOF
-
-# Enable iwd service so it will be ready for active use
-sudo systemctl unmask iwd 2>/dev/null || true
-sudo systemctl enable iwd 2>/dev/null || true
-
-# 6. Deploy Dotfiles via Direct Atomic Symlinking
-echo "[5/8] Deploying dotfiles into $TARGET_HOME..."
-DOTFILES_DIR="$SCRIPT_DIR/dotfiles"
-STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal iwgtk"
-
-# Ensure target home base directories exist with proper user ownership
-sudo mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh"
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" 2>/dev/null || true
-
-for pkg in $STOW_PKGS; do
-    pkg_dir="$DOTFILES_DIR/$pkg"
-    if [ -d "$pkg_dir" ]; then
-        (
-            cd "$pkg_dir"
-            find . -type f -o -type l | while read -r f; do
-                rel="${f#./}"
-                src="$pkg_dir/$rel"
-                dst="$TARGET_HOME/$rel"
-                
-                mkdir -p "$(dirname "$dst")"
-                [ -d "$dst" ] && [ ! -L "$dst" ] && rm -rf "$dst"
-                ln -sf "$src" "$dst"
-            done
-        )
-    fi
-done
-
-# Clean up any leftover legacy .bak files from previous bootstrap iterations
-find "$TARGET_HOME/.config" "$TARGET_HOME/.local" -name "*.bak" -delete 2>/dev/null || true
-
-# Ensure all scripts in .local/bin are executable
-chmod +x "$TARGET_HOME/.local/bin/"* 2>/dev/null || true
-
-# Ensure all deployed dotfiles and home directory (including .Xauthority) are owned by TARGET_USER
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
-
-# Restore Guake terminal styling & palette
-if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then
-    echo "Restoring Guake terminal styling & Twilight palette..."
-    which dconf >/dev/null 2>&1 && run_as_target dconf load /org/guake/ < "$TARGET_HOME/.config/guake/guake-preferences.ini" 2>/dev/null || true
-fi
-
-chmod +x "$TARGET_HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
-chmod +x "$TARGET_HOME/.local/bin/gutterdesk-first-run.sh" 2>/dev/null || true
-chmod +x "$TARGET_HOME/.local/bin/gutterdesk-rotator" 2>/dev/null || true
-[ -f "$TARGET_HOME/.local/bin/gutterdesk-rotator" ] && sudo ln -sf "$TARGET_HOME/.local/bin/gutterdesk-rotator" /usr/local/bin/gutterdesk-rotator
-chmod +x "$TARGET_HOME/.local/bin/gutterdesk-menu" 2>/dev/null || true
-[ -f "$TARGET_HOME/.local/bin/gutterdesk-menu" ] && sudo ln -sf "$TARGET_HOME/.local/bin/gutterdesk-menu" /usr/local/bin/gutterdesk-menu
-chmod +x "$TARGET_HOME/.config/openbox/autostart" 2>/dev/null || true
-
-# Remove legacy static menu.xml symlink and initialize staged Openbox menu
-[ -L "$TARGET_HOME/.config/openbox/menu.xml" ] && rm -f "$TARGET_HOME/.config/openbox/menu.xml"
-if [ -x "$TARGET_HOME/.local/bin/gutterdesk-menu" ]; then
-    echo "Compiling staged Openbox menu..."
-    run_as_target "$TARGET_HOME/.local/bin/gutterdesk-menu" init
-fi
-
-# 7. Set Default Applications
-echo "[6/8] Configuring default desktop associations..."
-run_as_target xdg-mime default pcmanfm.desktop inode/directory 2>/dev/null || true
-
-# 8. Build gutterDeck and gutterTab
-echo "[7/8] Building and installing desktop utilities..."
-sudo mkdir -p "$TARGET_HOME/.local/bin" /usr/local/bin
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local" 2>/dev/null || true
-
-build_tool() {
-    local name="$1"
-    local repo="$2"
-    local build_root="/tmp/gutterdesk-build"
-    local dir="$build_root/$name"
     
-    run_as_target mkdir -p "$build_root"
-    echo "Cloning $name into temporary build directory $dir..."
-    rm -rf "$dir"
-    if ! run_as_target git clone "$repo" "$dir"; then
-        echo "ERROR: Failed to clone $name from $repo" >&2
-        echo "Please ensure internet connectivity to GitHub." >&2
-        exit 1
-    fi
-    
-    if [ -f "$dir/CMakeLists.txt" ]; then
-        echo "Building $name as $TARGET_USER..."
-        run_as_target mkdir -p "$dir/build"
-        if ! run_as_target bash -c "cd '$dir/build' && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j\$(nproc)"; then
-            echo "ERROR: Compilation of $name failed!" >&2
-            exit 1
-        fi
-        
-        local bin_source=""
-        if [ -f "$dir/build/$name" ]; then
-            bin_source="$dir/build/$name"
-        elif [ -f "$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')" ]; then
-            bin_source="$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')"
-        fi
-        
-        if [ -n "$bin_source" ] && [ -x "$bin_source" ]; then
-            local bin_basename="$(basename "$bin_source")"
-            echo "Installing $bin_basename to /usr/local/bin and $TARGET_HOME/.local/bin..."
-            sudo install -m 755 "$bin_source" "/usr/local/bin/$bin_basename"
-            run_as_target install -m 755 "$bin_source" "$TARGET_HOME/.local/bin/$bin_basename"
-        else
-            echo "ERROR: Compiled executable for $name not found in $dir/build!" >&2
-            exit 1
-        fi
+    if [ -n "$MATCHED" ]; then
+        run_stage "$MATCHED"
+        echo ""
+        echo "✓ Stage '$MATCHED' completed successfully!"
+        exit 0
     else
-        echo "ERROR: CMakeLists.txt not found in $dir!" >&2
+        echo "Error: No stage found matching '$TARGET_ARG'." >&2
+        list_stages
         exit 1
     fi
-}
-
-# Public HTTPS clones for universal accessibility
-build_tool "gutterDeck" "https://github.com/aimasri/gutterDeck.git"
-build_tool "gutterTab" "https://github.com/aimasri/gutterTab.git"
-rm -rf "/tmp/gutterdesk-build"
-
-# Verify binaries were compiled and installed
-if [ ! -x /usr/local/bin/gutterdeck ] && [ ! -x /usr/local/bin/gutterDeck ]; then
-    echo "ERROR: gutterDeck binary not found in /usr/local/bin!" >&2
-    exit 1
-fi
-if [ ! -x /usr/local/bin/guttertab ] && [ ! -x /usr/local/bin/gutterTab ]; then
-    echo "ERROR: gutterTab binary not found in /usr/local/bin!" >&2
-    exit 1
-fi
-echo "✓ gutterDeck and gutterTab successfully built and installed."
-
-# Ensure both casing variants exist in /usr/local/bin and ~/.local/bin
-echo "Creating binary aliases and compatibility symlinks..."
-if [ -f /usr/local/bin/gutterdeck ]; then
-    sudo ln -sf /usr/local/bin/gutterdeck /usr/local/bin/gutterDeck
-elif [ -f /usr/local/bin/gutterDeck ]; then
-    sudo ln -sf /usr/local/bin/gutterDeck /usr/local/bin/gutterdeck
 fi
 
-if [ -f /usr/local/bin/gutterTab ]; then
-    sudo ln -sf /usr/local/bin/gutterTab /usr/local/bin/guttertab
-elif [ -f /usr/local/bin/guttertab ]; then
-    sudo ln -sf /usr/local/bin/guttertab /usr/local/bin/gutterTab
-fi
+# Default execution: run all stages sequentially
+echo "=========================================================="
+echo "    gutterDesk: Universal Base Bootstrap (Debian 13)       "
+echo "=========================================================="
+echo "Target User: $TARGET_USER ($TARGET_HOME)"
+echo "Executing all 8 bootstrap stages sequentially..."
+echo ""
 
-if [ -f "$TARGET_HOME/.local/bin/gutterdeck" ]; then
-    run_as_target ln -sf "$TARGET_HOME/.local/bin/gutterdeck" "$TARGET_HOME/.local/bin/gutterDeck"
-elif [ -f "$TARGET_HOME/.local/bin/gutterDeck" ]; then
-    run_as_target ln -sf "$TARGET_HOME/.local/bin/gutterDeck" "$TARGET_HOME/.local/bin/gutterdeck"
-fi
+for item in "${STAGES[@]}"; do
+    stage_file="${item%%:*}"
+    run_stage "$stage_file"
+done
 
-if [ -f "$TARGET_HOME/.local/bin/gutterTab" ]; then
-    run_as_target ln -sf "$TARGET_HOME/.local/bin/gutterTab" "$TARGET_HOME/.local/bin/guttertab"
-elif [ -f "$TARGET_HOME/.local/bin/guttertab" ]; then
-    run_as_target ln -sf "$TARGET_HOME/.local/bin/guttertab" "$TARGET_HOME/.local/bin/gutterTab"
-fi
-
-# 8. Install Official Google Antigravity Suite (IDE & Agents Manager)
-echo "[8/9] Deploying Google Antigravity Suite..."
-CACHE_DIR="/var/cache/gutterdesk"
-sudo mkdir -p "$CACHE_DIR" /usr/share/antigravity /opt/Antigravity2 /usr/local/bin
-
-download_archive() {
-    local url="$1"
-    local dest="$2"
-    local label="$3"
-    
-    if [ -f "$dest" ] && [ -s "$dest" ]; then
-        echo "✓ $label archive cached ($dest)."
-        return 0
-    fi
-    
-    echo "Downloading $label from official Google repository..."
-    if which curl >/dev/null 2>&1; then
-        sudo curl -fL --progress-bar --retry 3 --retry-delay 2 "$url" -o "$dest.tmp"
-    elif which wget >/dev/null 2>&1; then
-        sudo wget -q --show-progress "$url" -O "$dest.tmp"
-    fi
-    sudo mv "$dest.tmp" "$dest"
-    echo "✓ $label download complete."
-}
-
-# A. Antigravity IDE (VS Code based agentic editor)
-IDE_URL="https://dl.google.com/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-x64/Antigravity%20IDE.tar.gz"
-IDE_TAR="$CACHE_DIR/Antigravity_IDE.tar.gz"
-download_archive "$IDE_URL" "$IDE_TAR" "Antigravity IDE"
-
-if [ ! -f /usr/share/antigravity/antigravity-ide ]; then
-    echo "Installing Antigravity IDE into /usr/share/antigravity..."
-    sudo rm -rf /usr/share/antigravity/* 2>/dev/null || true
-    sudo tar -xzf "$IDE_TAR" -C /usr/share/antigravity --strip-components=1
-    sudo chown root:root /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
-    sudo chmod 4755 /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
-fi
-sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/bin/antigravity
-sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/local/bin/antigravity
-run_as_target ln -sf /usr/bin/antigravity "$TARGET_HOME/.local/bin/antigravity"
-
-# B. Antigravity 2.0 (Standalone Multi-Agent Platform & Agents Manager)
-HUB_URL="https://storage.googleapis.com/antigravity-public/antigravity-hub/2.17.0-5217732355031040/linux-x64/Antigravity.tar.gz"
-HUB_TAR="$CACHE_DIR/Antigravity_Hub.tar.gz"
-download_archive "$HUB_URL" "$HUB_TAR" "Antigravity Agents Manager"
-
-if [ ! -f /opt/Antigravity2/antigravity ]; then
-    echo "Installing Antigravity 2.0 Agents Manager into /opt/Antigravity2..."
-    sudo rm -rf /opt/Antigravity2/* 2>/dev/null || true
-    sudo tar -xzf "$HUB_TAR" -C /opt/Antigravity2 --strip-components=1
-    sudo chown root:root /opt/Antigravity2/chrome-sandbox 2>/dev/null || true
-    sudo chmod 4755 /opt/Antigravity2/chrome-sandbox 2>/dev/null || true
-fi
-sudo ln -sf /opt/Antigravity2/antigravity /usr/local/bin/antigravity2
-run_as_target ln -sf /usr/local/bin/antigravity2 "$TARGET_HOME/.local/bin/antigravity2"
-
-# C. Desktop & Icon Integration
-sudo mkdir -p /usr/share/applications /usr/share/pixmaps
-if [ -f "$SCRIPT_DIR/assets/icons/antigravity.png" ]; then
-    sudo cp "$SCRIPT_DIR/assets/icons/antigravity.png" /usr/share/pixmaps/antigravity.png
-elif [ -f /usr/share/antigravity/resources/app/resources/linux/code.png ]; then
-    sudo cp /usr/share/antigravity/resources/app/resources/linux/code.png /usr/share/pixmaps/antigravity.png
-fi
-
-sudo tee /usr/share/applications/antigravity.desktop >/dev/null << 'EOF_DESK'
-[Desktop Entry]
-Name=Antigravity IDE
-Comment=Experience liftoff - AI-First Code Editor
-GenericName=Text Editor
-Exec=/usr/bin/antigravity %F
-Icon=antigravity
-Type=Application
-StartupNotify=true
-StartupWMClass=Antigravity
-Categories=TextEditor;Development;IDE;
-MimeType=application/x-antigravity-workspace;
-EOF_DESK
-
-sudo tee /usr/share/applications/antigravity2.desktop >/dev/null << 'EOF_DESK2'
-[Desktop Entry]
-Name=Antigravity Agents Manager
-Comment=Google Antigravity 2.0 Multi-Agent Orchestration Platform
-GenericName=Agent Workspace Manager
-Exec=/usr/local/bin/antigravity2 %U
-Icon=antigravity
-Type=Application
-StartupNotify=true
-StartupWMClass=Antigravity
-Categories=Development;Utility;
-EOF_DESK2
-sudo update-desktop-database /usr/share/applications 2>/dev/null || true
-
-# Guake as default x-terminal-emulator
-sudo tee /usr/local/bin/x-terminal-emulator >/dev/null << 'EOF'
-#!/bin/bash
-if [ -n "$1" ]; then
-    guake "$@"
-else
-    guake-toggle
-fi
-EOF
-sudo chmod 755 /usr/local/bin/x-terminal-emulator
-run_as_target ln -sf /usr/local/bin/x-terminal-emulator "$TARGET_HOME/.local/bin/x-terminal-emulator"
-
-# Install /etc/profile.d/gutterdesk.sh for system-wide PATH configuration
-echo "Configuring system-wide environment PATH in /etc/profile.d/gutterdesk.sh..."
-sudo tee /etc/profile.d/gutterdesk.sh >/dev/null << 'EOF'
-# gutterDesk system-wide PATH configuration
-if [ -n "$PATH" ]; then
-    case ":$PATH:" in
-        *:/usr/local/bin:*) ;;
-        *) export PATH="/usr/local/bin:$PATH" ;;
-    esac
-    case ":$PATH:" in
-        *:"$HOME/.local/bin":*) ;;
-        *) export PATH="$HOME/.local/bin:$PATH" ;;
-    esac
-else
-    export PATH="/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin"
-fi
-export GTK_USE_PORTAL=0
-EOF
-sudo chmod 644 /etc/profile.d/gutterdesk.sh
-
-# 9. Power, Lid & Battery Management (Always-On Laptop/Server Support)
-echo "[8/9] Configuring power, lid switch, and battery health..."
-
-# A. Ignore laptop lid switch so closing the screen does not suspend server operations
-sudo mkdir -p /etc/systemd/logind.conf.d
-sudo tee /etc/systemd/logind.conf.d/gutterdesk-lid.conf >/dev/null << 'EOF'
-[Login]
-HandleLidSwitch=ignore
-HandleLidSwitchExternalPower=ignore
-HandleLidSwitchDocked=ignore
-EOF
-
-# B. Configure 80% battery charging threshold if supported by hardware (e.g. ASUS / ThinkPad)
-BAT_THRESHOLD_FILE=$(ls /sys/class/power_supply/BAT*/charge_control_end_threshold 2>/dev/null | head -n 1)
-if [ -n "$BAT_THRESHOLD_FILE" ]; then
-    echo "Hardware battery charge control detected ($BAT_THRESHOLD_FILE). Setting 80% threshold..."
-    echo 80 | sudo tee "$BAT_THRESHOLD_FILE" >/dev/null || true
-    
-    sudo tee /etc/systemd/system/battery-charge-threshold.service >/dev/null << EOF
-[Unit]
-Description=Set Battery Charge Threshold to 80% (Battery Health)
-After=multi-user.target
-ConditionPathExists=$BAT_THRESHOLD_FILE
-
-[Service]
-Type=oneshot
-ExecStart=/bin/sh -c 'echo 80 > $BAT_THRESHOLD_FILE'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    sudo systemctl daemon-reload
-    sudo systemctl enable battery-charge-threshold.service 2>/dev/null || true
-fi
-
-# 10. GitHub Authentication Status Check
-echo "[9/9] Checking GitHub SSH authentication status for $TARGET_USER..."
-GH_AUTH=$(run_as_target ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T git@github.com 2>&1 || true)
-GH_USER=$(echo "$GH_AUTH" | grep -oP 'Hi \K[^!]+' || true)
-
-if [ "$GH_USER" = "aimasri" ]; then
-    echo "✓ GitHub SSH authentication verified for aimasri."
-elif [ -n "$GH_USER" ]; then
-    echo "----------------------------------------------------------"
-    echo "Notice: GitHub authenticated as '$GH_USER', expected 'aimasri'."
-    echo "----------------------------------------------------------"
-else
-    echo "----------------------------------------------------------"
-    echo "Notice: GitHub SSH authentication is not yet configured for $TARGET_USER."
-    echo "To authenticate your GitHub account on this machine, run:"
-    echo "  gh auth login"
-    echo "----------------------------------------------------------"
-fi
-
-# 11. Prepare network configuration for clean handoff to iwd on reboot
-echo "Preparing network configuration for next boot..."
-if [ -f /etc/network/interfaces ]; then
-    if [ ! -f /etc/network/interfaces.bak ]; then
-        sudo cp /etc/network/interfaces /etc/network/interfaces.bak
-    fi
-    sudo sed -i -E 's/^[[:space:]]*(iface|allow-hotplug|auto)[[:space:]]+(wlan|wlp).*/# &/g' /etc/network/interfaces
-    sudo sed -i -E 's/^[[:space:]]*wpa-.*/# &/g' /etc/network/interfaces
-fi
-sudo systemctl disable wpa_supplicant NetworkManager 2>/dev/null || true
-sudo systemctl enable iwd 2>/dev/null || true
-
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
-
+echo ""
 echo "=========================================================="
 echo "    gutterDesk Base Bootstrap Completed Successfully!     "
+echo "=========================================================="
+echo "Reboot recommended to initialize display manager and kernel settings:"
+echo "  sudo reboot"
 echo "=========================================================="

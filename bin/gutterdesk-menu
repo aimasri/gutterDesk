@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
-"""
-gutterdesk-menu: Modular Openbox Menu Manager for gutterDesk
-Compiles dynamic, module-based Openbox menus from template and fragments.
-"""
+# ==============================================================================
+# Title:           gutterdesk-menu
+# Purpose:         Modular Openbox Root Menu Manager & Staged Compiler
+# Why This Design: Rather than shipping a static, monolithic menu containing
+#                  shortcuts to uninstalled applications, gutterDesk dynamically
+#                  compiles ~/.config/openbox/menu.xml from a clean base template
+#                  (menu.template.xml) and capability fragments (menu.d/*.xml).
+# Privilege:       Target User / Sudo (auto-resolves target user identity & home)
+# Subsystems:      Openbox 3, X11, desktop entry integration
+# Idempotency:     Rebuilding the menu replaces ~/.config/openbox/menu.xml atomically
+#                  via temporary file swap; validates XML before applying.
+# ==============================================================================
 
 import sys
 import os
@@ -54,19 +62,23 @@ def get_paths(user_info):
     openbox_dir = os.path.join(home, ".config", "openbox")
     target_menu = os.path.join(openbox_dir, "menu.xml")
 
-    # Find template
+    # Find template across standard user, system, and repository paths
     candidates_tpl = [
         os.path.join(openbox_dir, "menu.template.xml"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dotfiles", "openbox", ".config", "openbox", "menu.template.xml")),
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".config", "openbox", "menu.template.xml")),
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".config", "openbox", "menu.template.xml")),
+        "/etc/xdg/openbox/menu.template.xml",
+        "/usr/share/gutterdesk/openbox/menu.template.xml",
     ]
     template_path = next((p for p in candidates_tpl if os.path.isfile(p)), candidates_tpl[0])
 
-    # Find menu.d
+    # Find menu.d fragments directory
     candidates_d = [
         os.path.join(openbox_dir, "menu.d"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dotfiles", "openbox", ".config", "openbox", "menu.d")),
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".config", "openbox", "menu.d")),
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".config", "openbox", "menu.d")),
+        "/etc/xdg/openbox/menu.d",
+        "/usr/share/gutterdesk/openbox/menu.d",
     ]
     menud_path = next((p for p in candidates_d if os.path.isdir(p)), candidates_d[0])
 
@@ -140,7 +152,6 @@ def build_menu(paths, user_info, enabled_modules):
             if os.path.isfile(frag_file):
                 with open(frag_file, "r", encoding="utf-8") as f:
                     frag_content = f.read()
-                # Ensure trailing newline
                 if not frag_content.endswith("\n"):
                     frag_content += "\n"
                 content = content.replace(placeholder, frag_content)
@@ -165,11 +176,10 @@ def build_menu(paths, user_info, enabled_modules):
 
     target_path = paths["target_menu"]
 
-    # If target is currently a symlink, remove the symlink so we write a real local file
+    # If target is currently a symlink, unlink so we write a real local file
     if os.path.islink(target_path):
         os.unlink(target_path)
     elif os.path.isfile(target_path):
-        # Backup existing file
         bak_file = f"{target_path}.bak"
         try:
             shutil.copy2(target_path, bak_file)
@@ -191,12 +201,10 @@ def build_menu(paths, user_info, enabled_modules):
 
 
 def reload_openbox(user_info):
-    # Only reconfigure if Openbox is actively running
     display = os.environ.get("DISPLAY")
     if not display:
         return
 
-    # Check if openbox process exists for this user
     try:
         res = subprocess.run(["pgrep", "-u", user_info["name"], "openbox"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if res.returncode != 0:
@@ -317,7 +325,6 @@ def main():
     elif args.command == "status":
         cmd_status(args, paths, user_info)
     else:
-        # Default action: status if no command provided
         cmd_status(args, paths, user_info)
 
 

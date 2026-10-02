@@ -1,12 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==============================================================================
-# gutterDesk: NFSv4 Server Setup Module (aim-stream)
-# ==============================================================================
-# Configures a hardened, high-performance NFSv4-only server exporting
-# /home/ahmed/projects to local LAN and Tailscale subnets.
+# Title:           module-nfs-server.sh
+# Purpose:         Provisions Hardened NFSv4-Only Server for Remote Development
+# Why This Design: Two-tier development topology centralizes all source repositories
+#                  on aim-stream. This module configures nfs-kernel-server locked
+#                  strictly to NFSv4 (port 2049, disabling NFSv2/v3, UDP, and rpcbind)
+#                  and exports ~/projects with fsid=0 (pseudo-root) to LAN and Tailscale.
+# Privilege:       Root (Requires sudo for nfs-kernel-server, /etc/exports & UFW)
+# Subsystems:      nfs-kernel-server, /etc/exports, UFW firewall, systemd
+# Idempotency:     Idempotently replaces target directory line in /etc/exports;
+#                  backs up configuration before mutating.
 # ==============================================================================
 
-set -e
+set -euo pipefail
 
 echo "=== [NFS Server] Provisioning NFSv4 Server on $(hostname) ==="
 

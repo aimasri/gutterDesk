@@ -1,4 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==============================================================================
+# Title:           module-banyan-engine.sh
+# Purpose:         Provisions Banyan Quantitative Trading Backend & Wine MT5 Bridge
+# Why This Design: Algorithmic trading requires interfacing Linux quantitative models
+#                  with Windows MetaTrader 5 execution brokers. This module sets up
+#                  an isolated Wine 64 prefix (~/.wine_banyan), installs MetaTrader 5,
+#                  provisions an embedded Windows Python runtime with RPyC bridge
+#                  (port 18812), creates a host Linux venv, and establishes a 24/7
+#                  headless systemd user service running under xvfb-run.
+# Privilege:       Dual (Requires sudo for host apt packages; manages Wine & venv as user)
+# Subsystems:      Wine 64, MetaTrader 5, Python 3.11, systemd (user service), Xvfb
+# Idempotency:     Validates existing Wine prefix, MT5 binary, and virtualenv prior to download.
+# ==============================================================================
+
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
