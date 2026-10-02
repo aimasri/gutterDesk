@@ -87,7 +87,7 @@ gutterDesk/
 │   └── logo/                    # Official horizontal, vertical, and dark logos
 ├── dotfiles/                    # Declarative dotfile hierarchies
 │   ├── antigravity/             # Antigravity IDE configuration (dialog rules)
-│   ├── openbox/                 # Window manager configs (menu.xml, rc.xml, autostart)
+│   ├── openbox/                 # Window manager configs (menu.template.xml, menu.d/, rc.xml, autostart)
 │   ├── tint2/                   # Status bar config and tint2-network.sh executor
 │   ├── iwgtk/                   # Wi-Fi indicator obsidian theme config
 │   ├── pcmanfm/                 # Dual-pane file manager layout & bookmarks

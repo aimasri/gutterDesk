@@ -404,6 +404,13 @@ else
     systemctl --user start banyan-engine-headless.service
 fi
 
+# Enable Openbox Trading menu
+if command -v gutterdesk-menu >/dev/null 2>&1; then
+    gutterdesk-menu enable trading
+elif [ -x "$HOME/.local/bin/gutterdesk-menu" ]; then
+    "$HOME/.local/bin/gutterdesk-menu" enable trading
+fi
+
 echo ""
 echo "=========================================================="
 echo "  Banyan Trading Engine installation and autostart ready! "
@@ -415,4 +422,5 @@ echo "  • Stop:    systemctl --user stop banyan-engine-headless"
 echo "  • Start:   systemctl --user start banyan-engine-headless"
 echo "  • GUI run: systemctl --user start banyan-engine"
 echo "=========================================================="
+
 

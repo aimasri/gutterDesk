@@ -89,23 +89,7 @@
       </action>
     </item>
 
-    <separator label="Trading"/>
-
-    <item label="Banyan">
-      <action name="Execute">
-        <execute>sh -c '[ -x "$HOME/projects/Banyan/desktop/build/banyan_daemon" ] &amp;&amp; "$HOME/projects/Banyan/desktop/build/banyan_daemon" --show || banyan_daemon --show'</execute>
-      </action>
-    </item>
-    <item label="Cable">
-      <action name="Execute">
-        <execute>chromium "https://www.tradingview.com/chart/?symbol=GBPUSD"</execute>
-      </action>
-    </item>
-    <item label="Gold">
-      <action name="Execute">
-        <execute>chromium "https://www.tradingview.com/chart/?symbol=XAUUSD"</execute>
-      </action>
-    </item>
+<!-- %%MENU_TRADING%% -->
 
     <separator label="Applications"/>
 
@@ -123,73 +107,7 @@
       </item>
     </menu>
 
-    <!-- 2. Creative Suite -->
-    <menu id="creative-menu" label="Creative Suite">
-      <item label="GIMP Image Editor">
-        <action name="Execute">
-          <execute>gimp</execute>
-        </action>
-      </item>
-      <item label="Inkscape Vector Graphics">
-        <action name="Execute">
-          <execute>inkscape</execute>
-        </action>
-      </item>
-      <item label="Krita Digital Painting">
-        <action name="Execute">
-          <execute>krita</execute>
-        </action>
-      </item>
-      <separator/>
-      <item label="Blender 3D Suite">
-        <action name="Execute">
-          <execute>blender</execute>
-        </action>
-      </item>
-      <item label="FreeCAD 3D Modeling">
-        <action name="Execute">
-          <execute>freecad</execute>
-        </action>
-      </item>
-      <separator/>
-      <item label="Darktable Photo Workflow">
-        <action name="Execute">
-          <execute>darktable</execute>
-        </action>
-      </item>
-      <item label="DigiKam Photo Manager">
-        <action name="Execute">
-          <execute>digikam</execute>
-        </action>
-      </item>
-      <separator/>
-      <item label="Ardour Digital Audio Workstation">
-        <action name="Execute">
-          <execute>ardour</execute>
-        </action>
-      </item>
-      <item label="LMMS Music Production">
-        <action name="Execute">
-          <execute>lmms</execute>
-        </action>
-      </item>
-      <separator/>
-      <item label="Kdenlive Video Editor">
-        <action name="Execute">
-          <execute>kdenlive</execute>
-        </action>
-      </item>
-      <item label="Shotcut Video Editor">
-        <action name="Execute">
-          <execute>shotcut</execute>
-        </action>
-      </item>
-      <item label="HandBrake Video Transcoder">
-        <action name="Execute">
-          <execute>handbrake</execute>
-        </action>
-      </item>
-    </menu>
+<!-- %%MENU_CREATIVE%% -->
 
     <!-- 3. Viewers -->
     <menu id="viewers-menu" label="Viewers">
@@ -262,11 +180,7 @@
           <execute>blueman-manager</execute>
         </action>
       </item>
-      <item label="Transmission BitTorrent">
-        <action name="Execute">
-          <execute>transmission-gtk</execute>
-        </action>
-      </item>
+<!-- %%MENU_TORRENT%% -->
     </menu>
 
     <separator label="Preferences"/>

@@ -309,7 +309,16 @@ chmod +x "$TARGET_HOME/.local/bin/auto-wallpaper.sh" 2>/dev/null || true
 chmod +x "$TARGET_HOME/.local/bin/gutterdesk-first-run.sh" 2>/dev/null || true
 chmod +x "$TARGET_HOME/.local/bin/gutterdesk-rotator" 2>/dev/null || true
 [ -f "$TARGET_HOME/.local/bin/gutterdesk-rotator" ] && sudo ln -sf "$TARGET_HOME/.local/bin/gutterdesk-rotator" /usr/local/bin/gutterdesk-rotator
+chmod +x "$TARGET_HOME/.local/bin/gutterdesk-menu" 2>/dev/null || true
+[ -f "$TARGET_HOME/.local/bin/gutterdesk-menu" ] && sudo ln -sf "$TARGET_HOME/.local/bin/gutterdesk-menu" /usr/local/bin/gutterdesk-menu
 chmod +x "$TARGET_HOME/.config/openbox/autostart" 2>/dev/null || true
+
+# Remove legacy static menu.xml symlink and initialize staged Openbox menu
+[ -L "$TARGET_HOME/.config/openbox/menu.xml" ] && rm -f "$TARGET_HOME/.config/openbox/menu.xml"
+if [ -x "$TARGET_HOME/.local/bin/gutterdesk-menu" ]; then
+    echo "Compiling staged Openbox menu..."
+    run_as_target "$TARGET_HOME/.local/bin/gutterdesk-menu" init
+fi
 
 # 7. Set Default Applications
 echo "[6/8] Configuring default desktop associations..."

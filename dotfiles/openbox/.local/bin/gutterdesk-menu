@@ -1,0 +1,325 @@
+#!/usr/bin/env python3
+"""
+gutterdesk-menu: Modular Openbox Menu Manager for gutterDesk
+Compiles dynamic, module-based Openbox menus from template and fragments.
+"""
+
+import sys
+import os
+import pwd
+import shutil
+import argparse
+import subprocess
+import xml.etree.ElementTree as ET
+
+MODULE_PLACEHOLDERS = {
+    "trading": "<!-- %%MENU_TRADING%% -->\n",
+    "creative": "<!-- %%MENU_CREATIVE%% -->\n",
+    "torrent": "<!-- %%MENU_TORRENT%% -->\n",
+}
+
+MODULE_DESCRIPTIONS = {
+    "trading": "Banyan Trading Engine & TradingView shortcuts",
+    "creative": "Creative Suite (GIMP, Inkscape, Krita, Blender, etc.)",
+    "torrent": "Transmission BitTorrent client",
+}
+
+
+def get_target_user_info():
+    target_user = os.environ.get("SUDO_USER") or os.environ.get("USER") or os.getlogin() if hasattr(os, "getlogin") else None
+    if not target_user:
+        target_user = pwd.getpwuid(os.getuid()).pw_name
+
+    try:
+        user_entry = pwd.getpwnam(target_user)
+        return {
+            "name": user_entry.pw_name,
+            "home": user_entry.pw_dir,
+            "uid": user_entry.pw_uid,
+            "gid": user_entry.pw_gid,
+        }
+    except KeyError:
+        return {
+            "name": target_user,
+            "home": os.path.expanduser(f"~{target_user}"),
+            "uid": os.getuid(),
+            "gid": os.getgid(),
+        }
+
+
+def get_paths(user_info):
+    home = user_info["home"]
+    config_dir = os.path.join(home, ".config", "gutterdesk")
+    state_file = os.path.join(config_dir, "menu-modules")
+    openbox_dir = os.path.join(home, ".config", "openbox")
+    target_menu = os.path.join(openbox_dir, "menu.xml")
+
+    # Find template
+    candidates_tpl = [
+        os.path.join(openbox_dir, "menu.template.xml"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".config", "openbox", "menu.template.xml")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".config", "openbox", "menu.template.xml")),
+    ]
+    template_path = next((p for p in candidates_tpl if os.path.isfile(p)), candidates_tpl[0])
+
+    # Find menu.d
+    candidates_d = [
+        os.path.join(openbox_dir, "menu.d"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".config", "openbox", "menu.d")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".config", "openbox", "menu.d")),
+    ]
+    menud_path = next((p for p in candidates_d if os.path.isdir(p)), candidates_d[0])
+
+    return {
+        "config_dir": config_dir,
+        "state_file": state_file,
+        "openbox_dir": openbox_dir,
+        "target_menu": target_menu,
+        "template": template_path,
+        "menud": menud_path,
+    }
+
+
+def load_enabled_modules(state_file):
+    if not os.path.isfile(state_file):
+        return set()
+    with open(state_file, "r", encoding="utf-8") as f:
+        modules = {line.strip() for line in f if line.strip() and not line.startswith("#")}
+    return modules
+
+
+def save_enabled_modules(state_file, config_dir, user_info, modules):
+    os.makedirs(config_dir, exist_ok=True)
+    try:
+        os.chown(config_dir, user_info["uid"], user_info["gid"])
+    except OSError:
+        pass
+
+    tmp_file = f"{state_file}.tmp"
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        f.write("# gutterDesk enabled Openbox menu modules\n")
+        for mod in sorted(modules):
+            f.write(f"{mod}\n")
+
+    try:
+        os.chown(tmp_file, user_info["uid"], user_info["gid"])
+    except OSError:
+        pass
+    os.replace(tmp_file, state_file)
+
+
+def autodetect_modules(user_info):
+    detected = set()
+    home = user_info["home"]
+
+    # Creative suite
+    if shutil.which("gimp") or shutil.which("inkscape") or shutil.which("blender"):
+        detected.add("creative")
+
+    # Torrent
+    if shutil.which("transmission-gtk"):
+        detected.add("torrent")
+
+    # Trading
+    if shutil.which("banyan_daemon") or os.path.isdir(os.path.join(home, "projects", "Banyan")):
+        detected.add("trading")
+
+    return detected
+
+
+def build_menu(paths, user_info, enabled_modules):
+    if not os.path.isfile(paths["template"]):
+        raise FileNotFoundError(f"Menu template not found at {paths['template']}")
+
+    with open(paths["template"], "r", encoding="utf-8") as f:
+        content = f.read()
+
+    for mod, placeholder in MODULE_PLACEHOLDERS.items():
+        if mod in enabled_modules:
+            frag_file = os.path.join(paths["menud"], f"{mod}.xml")
+            if os.path.isfile(frag_file):
+                with open(frag_file, "r", encoding="utf-8") as f:
+                    frag_content = f.read()
+                # Ensure trailing newline
+                if not frag_content.endswith("\n"):
+                    frag_content += "\n"
+                content = content.replace(placeholder, frag_content)
+            else:
+                print(f"Warning: Fragment file for module '{mod}' not found at {frag_file}", file=sys.stderr)
+                content = content.replace(placeholder, "")
+        else:
+            content = content.replace(placeholder, "")
+
+    # Validate XML
+    try:
+        ET.fromstring(content)
+    except ET.ParseError as e:
+        raise ValueError(f"Generated menu XML failed syntax validation: {e}")
+
+    # Ensure target directory exists
+    os.makedirs(paths["openbox_dir"], exist_ok=True)
+    try:
+        os.chown(paths["openbox_dir"], user_info["uid"], user_info["gid"])
+    except OSError:
+        pass
+
+    target_path = paths["target_menu"]
+
+    # If target is currently a symlink, remove the symlink so we write a real local file
+    if os.path.islink(target_path):
+        os.unlink(target_path)
+    elif os.path.isfile(target_path):
+        # Backup existing file
+        bak_file = f"{target_path}.bak"
+        try:
+            shutil.copy2(target_path, bak_file)
+            os.chown(bak_file, user_info["uid"], user_info["gid"])
+        except OSError:
+            pass
+
+    tmp_target = f"{target_path}.tmp"
+    with open(tmp_target, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    os.chmod(tmp_target, 0o644)
+    try:
+        os.chown(tmp_target, user_info["uid"], user_info["gid"])
+    except OSError:
+        pass
+
+    os.replace(tmp_target, target_path)
+
+
+def reload_openbox(user_info):
+    # Only reconfigure if Openbox is actively running
+    display = os.environ.get("DISPLAY")
+    if not display:
+        return
+
+    # Check if openbox process exists for this user
+    try:
+        res = subprocess.run(["pgrep", "-u", user_info["name"], "openbox"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            return
+    except Exception:
+        return
+
+    cmd = ["openbox", "--reconfigure"]
+    if os.getuid() == 0 and user_info["uid"] != 0:
+        cmd = ["sudo", "-u", user_info["name"], "DISPLAY=" + display, "openbox", "--reconfigure"]
+
+    try:
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    except Exception:
+        pass
+
+
+def cmd_init(args, paths, user_info):
+    if not os.path.isfile(paths["state_file"]):
+        detected = autodetect_modules(user_info)
+        save_enabled_modules(paths["state_file"], paths["config_dir"], user_info, detected)
+        enabled = detected
+        if detected:
+            print(f"Initialized menu modules state with detected packages: {', '.join(sorted(detected))}")
+        else:
+            print("Initialized menu modules state (Base OS, no optional modules active).")
+    else:
+        enabled = load_enabled_modules(paths["state_file"])
+
+    build_menu(paths, user_info, enabled)
+    reload_openbox(user_info)
+    print(f"✓ Openbox menu generated at {paths['target_menu']}")
+
+
+def cmd_enable(args, paths, user_info):
+    module = args.module.lower()
+    if module not in MODULE_PLACEHOLDERS:
+        print(f"Error: Unknown module '{module}'. Supported modules: {', '.join(MODULE_PLACEHOLDERS.keys())}", file=sys.stderr)
+        sys.exit(1)
+
+    enabled = load_enabled_modules(paths["state_file"])
+    if module in enabled:
+        print(f"Module '{module}' is already enabled in Openbox menu.")
+    else:
+        enabled.add(module)
+        save_enabled_modules(paths["state_file"], paths["config_dir"], user_info, enabled)
+        print(f"Enabled module '{module}'.")
+
+    build_menu(paths, user_info, enabled)
+    reload_openbox(user_info)
+    print(f"✓ Openbox menu updated ({paths['target_menu']})")
+
+
+def cmd_disable(args, paths, user_info):
+    module = args.module.lower()
+    if module not in MODULE_PLACEHOLDERS:
+        print(f"Error: Unknown module '{module}'. Supported modules: {', '.join(MODULE_PLACEHOLDERS.keys())}", file=sys.stderr)
+        sys.exit(1)
+
+    enabled = load_enabled_modules(paths["state_file"])
+    if module not in enabled:
+        print(f"Module '{module}' is not currently enabled.")
+    else:
+        enabled.remove(module)
+        save_enabled_modules(paths["state_file"], paths["config_dir"], user_info, enabled)
+        print(f"Disabled module '{module}'.")
+
+    build_menu(paths, user_info, enabled)
+    reload_openbox(user_info)
+    print(f"✓ Openbox menu updated ({paths['target_menu']})")
+
+
+def cmd_rebuild(args, paths, user_info):
+    enabled = load_enabled_modules(paths["state_file"])
+    build_menu(paths, user_info, enabled)
+    reload_openbox(user_info)
+    print(f"✓ Openbox menu rebuilt with {len(enabled)} active module(s) at {paths['target_menu']}")
+
+
+def cmd_status(args, paths, user_info):
+    enabled = load_enabled_modules(paths["state_file"])
+    print(f"Target User : {user_info['name']} ({user_info['home']})")
+    print(f"Active Menu : {paths['target_menu']} ({'exists' if os.path.isfile(paths['target_menu']) else 'missing'})")
+    print("\nModular Capabilities:")
+    for mod, desc in MODULE_DESCRIPTIONS.items():
+        status = "[x] ACTIVE" if mod in enabled else "[ ] inactive"
+        print(f"  {status:12} {mod:10} - {desc}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="gutterDesk Openbox Menu Manager")
+    subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
+
+    subparsers.add_parser("init", help="Initialize and build initial menu")
+    subparsers.add_parser("rebuild", help="Recompile menu from enabled modules")
+    subparsers.add_parser("build", help="Alias for rebuild")
+    subparsers.add_parser("status", help="Show active and available menu modules")
+
+    enable_parser = subparsers.add_parser("enable", help="Enable a capability module menu")
+    enable_parser.add_argument("module", help=f"Module name ({', '.join(MODULE_PLACEHOLDERS.keys())})")
+
+    disable_parser = subparsers.add_parser("disable", help="Disable a capability module menu")
+    disable_parser.add_argument("module", help=f"Module name ({', '.join(MODULE_PLACEHOLDERS.keys())})")
+
+    args = parser.parse_args()
+
+    user_info = get_target_user_info()
+    paths = get_paths(user_info)
+
+    if args.command == "init":
+        cmd_init(args, paths, user_info)
+    elif args.command == "enable":
+        cmd_enable(args, paths, user_info)
+    elif args.command == "disable":
+        cmd_disable(args, paths, user_info)
+    elif args.command in ("rebuild", "build"):
+        cmd_rebuild(args, paths, user_info)
+    elif args.command == "status":
+        cmd_status(args, paths, user_info)
+    else:
+        # Default action: status if no command provided
+        cmd_status(args, paths, user_info)
+
+
+if __name__ == "__main__":
+    main()

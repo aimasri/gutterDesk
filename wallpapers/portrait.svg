@@ -42,21 +42,21 @@
     </linearGradient>
 
     <!-- Deep Clean Obsidian Vignette -->
-    <radialGradient id="bgVignette" cx="50%" cy="40%" r="70%">
+    <radialGradient id="bgVignette" cx="50%" cy="50%" r="75%">
       <stop offset="0%" stop-color="#0c1114"/>
       <stop offset="50%" stop-color="#080c0e"/>
       <stop offset="100%" stop-color="#040607"/>
     </radialGradient>
 
-    <!-- Faint Hero Backlight (Very low opacity 0.05) -->
+    <!-- Faint Hero Backlight -->
     <radialGradient id="faintGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.05"/>
-      <stop offset="60%" stop-color="#06b6d4" stop-opacity="0.015"/>
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.06"/>
+      <stop offset="55%" stop-color="#06b6d4" stop-opacity="0.02"/>
       <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
     </radialGradient>
 
     <filter id="faintBlur" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="35"/>
+      <feGaussianBlur stdDeviation="40"/>
     </filter>
 
     <!-- Reusable gutterDeck Barcode Group (Height 184, Center Y=128) -->
@@ -151,67 +151,56 @@
   <!-- Canvas Background -->
   <rect width="1080" height="1920" fill="url(#bgVignette)"/>
 
-  <!-- Faint Hero Backlight (Vastly Reduced) -->
-  <circle cx="540" cy="580" r="300" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
+  <!-- Subtle Ambient Glow behind Hero -->
+  <circle cx="540" cy="880" r="340" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
 
-  <!-- ================= TIER 1: CENTER HERO (gutterDesk) ================= -->
-  <g transform="translate(322, 340)">
-    <g transform="scale(1.7)">
-      <use href="#deskMatrix"/>
-    </g>
+  <!-- ================= CENTER HERO: gutterDesk (Refined scale 1.35) ================= -->
+  <g transform="translate(367.2, 634) scale(1.35)">
+    <use href="#deskMatrix"/>
   </g>
 
-  <!-- Hero Typography in Proper Brand Casing -->
-  <text x="540" y="780" text-anchor="middle"
+  <!-- Typography -->
+  <text x="540" y="1005" text-anchor="middle"
         font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="94" font-weight="400" letter-spacing="-1.8px">
+        font-size="76" font-weight="400" letter-spacing="-1.4px">
     <tspan fill="#F8FAFC" font-weight="400">gutter</tspan><tspan fill="url(#deskGrad)" font-weight="800">Desk</tspan>
   </text>
 
-  <text x="540" y="828" text-anchor="middle"
+  <text x="540" y="1048" text-anchor="middle"
         font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="18" font-weight="500" letter-spacing="4px" fill="#94A3B8">
+        font-size="15" font-weight="500" letter-spacing="3.8px" fill="#94A3B8">
     Tactile Workspace Distro
   </text>
 
 
-  <!-- ================= TIER 2: SISTER APPS (Vertical Stacked Lockups Side-by-Side) ================= -->
-  <!-- Sister 1: gutterDeck (Centered at X=300, Y=1000..1205) -->
-  <g transform="translate(215.5, 976.6) scale(0.65)">
-    <use href="#deckBarcode"/>
+  <!-- ================= BOTTOM RIGHT: SISTER APPS (Subtle, Compact above Tray) ================= -->
+  <g id="bottom-right-sisters" transform="translate(780, 1848)" opacity="0.65">
+    <!-- gutterDeck Lockup -->
+    <g transform="translate(0, 0)">
+      <g transform="translate(0, -6) scale(0.14)">
+        <use href="#deckBarcode"/>
+      </g>
+      <text x="36" y="16"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
+            font-size="14" font-weight="400" letter-spacing="-0.3px">
+        <tspan fill="#CBD5E1">gutter</tspan><tspan fill="url(#deckGrad)" font-weight="700">Deck</tspan>
+      </text>
+    </g>
+
+    <!-- Divider dot -->
+    <circle cx="132" cy="11" r="2" fill="#475569"/>
+
+    <!-- gutterTab Lockup -->
+    <g transform="translate(148, 0)">
+      <g transform="translate(0, -6) scale(0.14)">
+        <use href="#tabBento"/>
+      </g>
+      <text x="36" y="16"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
+            font-size="14" font-weight="400" letter-spacing="-0.3px">
+        <tspan fill="#CBD5E1">gutter</tspan><tspan fill="url(#tabGrad)" font-weight="700">Tab</tspan>
+      </text>
+    </g>
   </g>
-  <text x="300" y="1175" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="42" font-weight="400" letter-spacing="-1px">
-    <tspan fill="#F8FAFC">gutter</tspan><tspan fill="url(#deckGrad)" font-weight="800">Deck</tspan>
-  </text>
-  <text x="300" y="1205" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="12.5" font-weight="500" letter-spacing="1.2px" fill="#94A3B8">
-    Desktop Compositor Dock
-  </text>
-
-  <!-- Sister 2: gutterTab (Centered at X=780, Y=1000..1205) -->
-  <g transform="translate(696.8, 976.6) scale(0.65)">
-    <use href="#tabBento"/>
-  </g>
-  <text x="780" y="1175" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="42" font-weight="400" letter-spacing="-1px">
-    <tspan fill="#F8FAFC">gutter</tspan><tspan fill="url(#tabGrad)" font-weight="800">Tab</tspan>
-  </text>
-  <text x="780" y="1205" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="12.5" font-weight="500" letter-spacing="1.2px" fill="#94A3B8">
-    Edge-Docked Note &amp; Prompt Daemon
-  </text>
-
-
-  <!-- ================= TIER 3: SINGLE-LINE INVITATION TAGLINE WITH DEBIAN ================= -->
-  <text x="540" y="1370" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="13.5" font-weight="500" letter-spacing="1.5px" fill="#CBD5E1">
-    The Tactile, Edge-Driven Productivity Suite &amp; Debian Linux Distro
-  </text>
 
 </svg>

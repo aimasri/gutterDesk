@@ -95,6 +95,13 @@ if [ -n "$DISPLAY" ]; then
     systemctl --user restart banyan-desktop.service
 fi
 
+# Enable Openbox Trading menu
+if command -v gutterdesk-menu >/dev/null 2>&1; then
+    gutterdesk-menu enable trading
+elif [ -x "$HOME/.local/bin/gutterdesk-menu" ]; then
+    "$HOME/.local/bin/gutterdesk-menu" enable trading
+fi
+
 echo ""
 echo "=========================================================="
 echo "  Banyan Desktop Dashboard installation complete!         "
@@ -104,4 +111,5 @@ echo "(via ~/.config/openbox/autostart -> banyan-desktop.service)."
 echo "You can also launch the command center from the Openbox menu"
 echo "or by running: banyan_daemon --show"
 echo "=========================================================="
+
 

@@ -19,3 +19,9 @@ sudo ufw allow 18812/tcp comment 'Allow Banyan Bridge RPyC' || true
 sudo ufw --force enable
 
 echo "Transmission and UFW firewall configured successfully."
+
+if command -v gutterdesk-menu >/dev/null 2>&1; then
+    gutterdesk-menu enable torrent
+elif [ -x "$HOME/.local/bin/gutterdesk-menu" ]; then
+    "$HOME/.local/bin/gutterdesk-menu" enable torrent
+fi

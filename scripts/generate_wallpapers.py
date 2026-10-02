@@ -1,4 +1,6 @@
-import os, subprocess
+import os
+import shutil
+import subprocess
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 WALLPAPER_DIR = os.path.join(BASE_DIR, "wallpapers")
@@ -47,21 +49,21 @@ COMMON_DEFS = """  <defs>
     </linearGradient>
 
     <!-- Deep Clean Obsidian Vignette -->
-    <radialGradient id="bgVignette" cx="50%" cy="40%" r="70%">
+    <radialGradient id="bgVignette" cx="50%" cy="50%" r="75%">
       <stop offset="0%" stop-color="#0c1114"/>
       <stop offset="50%" stop-color="#080c0e"/>
       <stop offset="100%" stop-color="#040607"/>
     </radialGradient>
 
-    <!-- Faint Hero Backlight (Very low opacity 0.05) -->
+    <!-- Faint Hero Backlight -->
     <radialGradient id="faintGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.05"/>
-      <stop offset="60%" stop-color="#06b6d4" stop-opacity="0.015"/>
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.06"/>
+      <stop offset="55%" stop-color="#06b6d4" stop-opacity="0.02"/>
       <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
     </radialGradient>
 
     <filter id="faintBlur" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="35"/>
+      <feGaussianBlur stdDeviation="40"/>
     </filter>
 
     <!-- Reusable gutterDeck Barcode Group (Height 184, Center Y=128) -->
@@ -156,87 +158,65 @@ COMMON_DEFS = """  <defs>
 # =========================================================================
 # 1. Landscape Wallpaper (1920x1080)
 # =========================================================================
-# Sibling row axis: Y_axis = 670.
-# Barcode scale 0.44: translateY = 670 - (128 * 0.44) = 670 - 56.32 = 613.68.
-# Barcode X: span 32..228 (width 196 * 0.44 = 86.24). translateX = 500.
-# Deck Text: starts at X=610. Baseline at Y=672. Subtitle at Y=694. Visual center = 670.
-# Bento scale 0.44: translateY = 670 - (128 * 0.44) = 613.68.
-# Bento X: span 36..220 (width 184 * 0.44 = 80.96). translateX = 1060.
-# Tab Text: starts at X=1165. Baseline at Y=672. Subtitle at Y=694. Visual center = 670.
+# Center Hero: gutterDesk (scale 1.15, centered horizontally and vertically)
+# Bottom Right: Sister apps (gutterDeck & gutterTab) subtle, compact above tray
 svg_landscape = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
 {COMMON_DEFS}
 
   <!-- Canvas Background -->
   <rect width="1920" height="1080" fill="url(#bgVignette)"/>
 
-  <!-- Faint Hero Backlight (Vastly Reduced) -->
-  <circle cx="960" cy="350" r="280" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
+  <!-- Subtle Ambient Glow behind Hero -->
+  <circle cx="960" cy="480" r="320" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
 
-  <!-- ================= TIER 1: CENTER HERO (gutterDesk) ================= -->
-  <g transform="translate(780, 95)">
-    <g transform="scale(1.40625)">
-      <use href="#deskMatrix"/>
-    </g>
+  <!-- ================= CENTER HERO: gutterDesk (Refined scale 1.15) ================= -->
+  <g transform="translate(812.8, 278.5) scale(1.15)">
+    <use href="#deskMatrix"/>
   </g>
 
-  <!-- Hero Typography in Proper Brand Casing -->
-  <text x="960" y="475" text-anchor="middle"
+  <!-- Typography -->
+  <text x="960" y="590" text-anchor="middle"
         font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="82" font-weight="400" letter-spacing="-1.5px">
+        font-size="68" font-weight="400" letter-spacing="-1.2px">
     <tspan fill="#F8FAFC" font-weight="400">gutter</tspan><tspan fill="url(#deskGrad)" font-weight="800">Desk</tspan>
   </text>
 
-  <text x="960" y="515" text-anchor="middle"
+  <text x="960" y="628" text-anchor="middle"
         font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="16" font-weight="500" letter-spacing="3.5px" fill="#94A3B8">
+        font-size="14" font-weight="500" letter-spacing="3.5px" fill="#94A3B8">
     Tactile Workspace Distro
   </text>
 
 
-  <!-- ================= TIER 2: SISTER APPS ROW (Free-standing, No Curved Boxes, Perfect Center Axis Y=670) ================= -->
-  <!-- Sister 1: gutterDeck (Left: centered on axis Y=670) -->
-  <g transform="translate(485, 613.7) scale(0.44)">
-    <use href="#deckBarcode"/>
+  <!-- ================= BOTTOM RIGHT: SISTER APPS (Subtle, Compact above Tray) ================= -->
+  <g id="bottom-right-sisters" transform="translate(1620, 1008)" opacity="0.65">
+    <!-- gutterDeck Lockup -->
+    <g transform="translate(0, 0)">
+      <g transform="translate(0, -6) scale(0.14)">
+        <use href="#deckBarcode"/>
+      </g>
+      <text x="36" y="16"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
+            font-size="14" font-weight="400" letter-spacing="-0.3px">
+        <tspan fill="#CBD5E1">gutter</tspan><tspan fill="url(#deckGrad)" font-weight="700">Deck</tspan>
+      </text>
+    </g>
+
+    <!-- Divider dot -->
+    <circle cx="132" cy="11" r="2" fill="#475569"/>
+
+    <!-- gutterTab Lockup -->
+    <g transform="translate(148, 0)">
+      <g transform="translate(0, -6) scale(0.14)">
+        <use href="#tabBento"/>
+      </g>
+      <text x="36" y="16"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
+            font-size="14" font-weight="400" letter-spacing="-0.3px">
+        <tspan fill="#CBD5E1">gutter</tspan><tspan fill="url(#tabGrad)" font-weight="700">Tab</tspan>
+      </text>
+    </g>
   </g>
-
-  <g transform="translate(600, 0)">
-    <text x="0" y="672"
-          font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-          font-size="36" font-weight="400" letter-spacing="-0.8px">
-      <tspan fill="#F8FAFC">gutter</tspan><tspan fill="url(#deckGrad)" font-weight="800">Deck</tspan>
-    </text>
-    <text x="2" y="694"
-          font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-          font-size="13" font-weight="500" letter-spacing="1.5px" fill="#94A3B8">
-      Desktop Compositor Dock
-    </text>
-  </g>
-
-  <!-- Sister 2: gutterTab (Right: centered on axis Y=670) -->
-  <g transform="translate(1055, 613.7) scale(0.44)">
-    <use href="#tabBento"/>
-  </g>
-
-  <g transform="translate(1165, 0)">
-    <text x="0" y="672"
-          font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-          font-size="36" font-weight="400" letter-spacing="-0.8px">
-      <tspan fill="#F8FAFC">gutter</tspan><tspan fill="url(#tabGrad)" font-weight="800">Tab</tspan>
-    </text>
-    <text x="2" y="694"
-          font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-          font-size="13" font-weight="500" letter-spacing="1.5px" fill="#94A3B8">
-      Edge-Docked Note &amp; Prompt Daemon
-    </text>
-  </g>
-
-
-  <!-- ================= TIER 3: SINGLE-LINE INVITATION TAGLINE WITH DEBIAN (No color line, No duplicates) ================= -->
-  <text x="960" y="840" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="15" font-weight="500" letter-spacing="2.5px" fill="#CBD5E1">
-    The Tactile, Edge-Driven Productivity Suite &amp; Debian Linux Distro
-  </text>
 
 </svg>"""
 
@@ -247,87 +227,75 @@ with open(f"{WALLPAPER_DIR}/landscape.svg", "w") as f:
 # =========================================================================
 # 2. Portrait Wallpaper (1080x1920)
 # =========================================================================
-# Sister 1 (Deck): Axis Y=1040. Width ~340. Center X=540.
-# Barcode at X=370, Y = 1040 - (128*0.42) = 1040 - 53.76 = 986.24.
-# Deck Text at X=480: Baseline Y=1042, Subtitle Y=1063.
-# Sister 2 (Tab): Axis Y=1170. Width ~360. Center X=540.
-# Bento at X=360, Y = 1170 - (128*0.42) = 1170 - 53.76 = 1116.24.
-# Tab Text at X=470: Baseline Y=1172, Subtitle Y=1193.
+# Center Hero: gutterDesk (scale 1.35)
+# Bottom Right: Sister apps (gutterDeck & gutterTab) subtle, compact above tray
 svg_portrait = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
 {COMMON_DEFS}
 
   <!-- Canvas Background -->
   <rect width="1080" height="1920" fill="url(#bgVignette)"/>
 
-  <!-- Faint Hero Backlight (Vastly Reduced) -->
-  <circle cx="540" cy="580" r="300" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
+  <!-- Subtle Ambient Glow behind Hero -->
+  <circle cx="540" cy="880" r="340" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
 
-  <!-- ================= TIER 1: CENTER HERO (gutterDesk) ================= -->
-  <g transform="translate(322, 340)">
-    <g transform="scale(1.7)">
-      <use href="#deskMatrix"/>
-    </g>
+  <!-- ================= CENTER HERO: gutterDesk (Refined scale 1.35) ================= -->
+  <g transform="translate(367.2, 634) scale(1.35)">
+    <use href="#deskMatrix"/>
   </g>
 
-  <!-- Hero Typography in Proper Brand Casing -->
-  <text x="540" y="780" text-anchor="middle"
+  <!-- Typography -->
+  <text x="540" y="1005" text-anchor="middle"
         font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="94" font-weight="400" letter-spacing="-1.8px">
+        font-size="76" font-weight="400" letter-spacing="-1.4px">
     <tspan fill="#F8FAFC" font-weight="400">gutter</tspan><tspan fill="url(#deskGrad)" font-weight="800">Desk</tspan>
   </text>
 
-  <text x="540" y="828" text-anchor="middle"
+  <text x="540" y="1048" text-anchor="middle"
         font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="18" font-weight="500" letter-spacing="4px" fill="#94A3B8">
+        font-size="15" font-weight="500" letter-spacing="3.8px" fill="#94A3B8">
     Tactile Workspace Distro
   </text>
 
 
-  <!-- ================= TIER 2: SISTER APPS (Vertical Stacked Lockups Side-by-Side) ================= -->
-  <!-- Sister 1: gutterDeck (Centered at X=300, Y=1000..1205) -->
-  <g transform="translate(215.5, 976.6) scale(0.65)">
-    <use href="#deckBarcode"/>
+  <!-- ================= BOTTOM RIGHT: SISTER APPS (Subtle, Compact above Tray) ================= -->
+  <g id="bottom-right-sisters" transform="translate(780, 1848)" opacity="0.65">
+    <!-- gutterDeck Lockup -->
+    <g transform="translate(0, 0)">
+      <g transform="translate(0, -6) scale(0.14)">
+        <use href="#deckBarcode"/>
+      </g>
+      <text x="36" y="16"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
+            font-size="14" font-weight="400" letter-spacing="-0.3px">
+        <tspan fill="#CBD5E1">gutter</tspan><tspan fill="url(#deckGrad)" font-weight="700">Deck</tspan>
+      </text>
+    </g>
+
+    <!-- Divider dot -->
+    <circle cx="132" cy="11" r="2" fill="#475569"/>
+
+    <!-- gutterTab Lockup -->
+    <g transform="translate(148, 0)">
+      <g transform="translate(0, -6) scale(0.14)">
+        <use href="#tabBento"/>
+      </g>
+      <text x="36" y="16"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
+            font-size="14" font-weight="400" letter-spacing="-0.3px">
+        <tspan fill="#CBD5E1">gutter</tspan><tspan fill="url(#tabGrad)" font-weight="700">Tab</tspan>
+      </text>
+    </g>
   </g>
-  <text x="300" y="1175" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="42" font-weight="400" letter-spacing="-1px">
-    <tspan fill="#F8FAFC">gutter</tspan><tspan fill="url(#deckGrad)" font-weight="800">Deck</tspan>
-  </text>
-  <text x="300" y="1205" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="12.5" font-weight="500" letter-spacing="1.2px" fill="#94A3B8">
-    Desktop Compositor Dock
-  </text>
-
-  <!-- Sister 2: gutterTab (Centered at X=780, Y=1000..1205) -->
-  <g transform="translate(696.8, 976.6) scale(0.65)">
-    <use href="#tabBento"/>
-  </g>
-  <text x="780" y="1175" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="42" font-weight="400" letter-spacing="-1px">
-    <tspan fill="#F8FAFC">gutter</tspan><tspan fill="url(#tabGrad)" font-weight="800">Tab</tspan>
-  </text>
-  <text x="780" y="1205" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="12.5" font-weight="500" letter-spacing="1.2px" fill="#94A3B8">
-    Edge-Docked Note &amp; Prompt Daemon
-  </text>
-
-
-  <!-- ================= TIER 3: SINGLE-LINE INVITATION TAGLINE WITH DEBIAN ================= -->
-  <text x="540" y="1370" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="13.5" font-weight="500" letter-spacing="1.5px" fill="#CBD5E1">
-    The Tactile, Edge-Driven Productivity Suite &amp; Debian Linux Distro
-  </text>
 
 </svg>"""
 
 with open(f"{WALLPAPER_DIR}/portrait.svg", "w") as f:
     f.write(svg_portrait)
 
+
+# =========================================================================
 # 3. Login / Lock Screen Background (Minimalist, Left-aligned Horizontal Lockup)
+# =========================================================================
 svg_login = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
 {COMMON_DEFS}
   <!-- Canvas Background -->
@@ -359,7 +327,40 @@ svg_login = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" 
 with open(f"{WALLPAPER_DIR}/login-background.svg", "w") as f:
     f.write(svg_login)
 
-subprocess.run(["inkscape", "--export-filename=" + f"{WALLPAPER_DIR}/login-background.png", f"{WALLPAPER_DIR}/login-background.svg"], check=True)
 
-print("Wallpapers generated.")
+# =========================================================================
+# 4. Rasterize PNG Wallpapers
+# =========================================================================
+def export_png(svg_path, png_path, width, height):
+    if shutil.which("google-chrome"):
+        cmd = [
+            "google-chrome",
+            "--headless",
+            "--no-sandbox",
+            f"--screenshot={png_path}",
+            f"--window-size={width},{height}",
+            f"file://{svg_path}",
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif shutil.which("chromium"):
+        cmd = [
+            "chromium",
+            "--headless",
+            "--no-sandbox",
+            f"--screenshot={png_path}",
+            f"--window-size={width},{height}",
+            f"file://{svg_path}",
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif shutil.which("inkscape"):
+        cmd = ["inkscape", f"--export-filename={png_path}", f"--export-width={width}", f"--export-height={height}", svg_path]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        print(f"Notice: Neither Chrome, Chromium, nor Inkscape found. PNG export skipped for {png_path}.")
 
+
+export_png(f"{WALLPAPER_DIR}/landscape.svg", f"{WALLPAPER_DIR}/landscape.png", 1920, 1080)
+export_png(f"{WALLPAPER_DIR}/portrait.svg", f"{WALLPAPER_DIR}/portrait.png", 1080, 1920)
+export_png(f"{WALLPAPER_DIR}/login-background.svg", f"{WALLPAPER_DIR}/login-background.png", 1920, 1080)
+
+print("All wallpapers generated and exported successfully.")
