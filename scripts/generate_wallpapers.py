@@ -158,7 +158,7 @@ COMMON_DEFS = """  <defs>
 # =========================================================================
 # 1. Landscape Wallpaper (1920x1080)
 # =========================================================================
-# Center Hero: gutterDesk (scale 1.15, centered horizontally and vertically)
+# Center Hero: gutterDesk Horizontal Lockup (Emblem + Wordmark side by side)
 # Bottom Right: Sister apps (gutterDeck & gutterTab) subtle, compact above tray
 svg_landscape = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
 {COMMON_DEFS}
@@ -167,25 +167,29 @@ svg_landscape = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 10
   <rect width="1920" height="1080" fill="url(#bgVignette)"/>
 
   <!-- Subtle Ambient Glow behind Hero -->
-  <circle cx="960" cy="480" r="320" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
+  <ellipse cx="960" cy="520" rx="440" ry="220" fill="url(#faintGlow)" filter="url(#faintBlur)"/>
 
-  <!-- ================= CENTER HERO: gutterDesk (Refined scale 1.15) ================= -->
-  <g transform="translate(812.8, 278.5) scale(1.15)">
-    <use href="#deskMatrix"/>
+  <!-- ================= CENTER HERO: gutterDesk Horizontal Lockup (Emblem + Wordmark) ================= -->
+  <g transform="translate(543, 370)">
+    <!-- Emblem (Centered on Y=150) -->
+    <g transform="translate(60, 8.55) scale(1.15)">
+      <use href="#deskMatrix"/>
+    </g>
+
+    <!-- Typography (Centered on Y=150) -->
+    <g transform="translate(340, 0)">
+      <text x="0" y="157"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
+            font-size="82" font-weight="400" letter-spacing="-1.5px">
+        <tspan fill="#F8FAFC" font-weight="400">gutter</tspan><tspan fill="url(#deskGrad)" font-weight="800">Desk</tspan>
+      </text>
+      <text x="4" y="195"
+            font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
+            font-size="16" font-weight="500" letter-spacing="3.5px" fill="#94A3B8">
+        Tactile Workspace Distro
+      </text>
+    </g>
   </g>
-
-  <!-- Typography -->
-  <text x="960" y="590" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', -apple-system, sans-serif"
-        font-size="68" font-weight="400" letter-spacing="-1.2px">
-    <tspan fill="#F8FAFC" font-weight="400">gutter</tspan><tspan fill="url(#deskGrad)" font-weight="800">Desk</tspan>
-  </text>
-
-  <text x="960" y="628" text-anchor="middle"
-        font-family="'Inter', 'Liberation Sans', 'DejaVu Sans', sans-serif"
-        font-size="14" font-weight="500" letter-spacing="3.5px" fill="#94A3B8">
-    Tactile Workspace Distro
-  </text>
 
 
   <!-- ================= BOTTOM RIGHT: SISTER APPS (Subtle, Compact above Tray) ================= -->
