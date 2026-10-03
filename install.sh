@@ -154,6 +154,17 @@ case "$ROLE" in
         echo ""
         echo "==> Configuring Machine as Central Development Server (Export: $SERVER_EXPORT_DIR)..."
         "$SCRIPT_DIR/modules/module-nfs-server.sh" "$SERVER_EXPORT_DIR"
+        if command -v whiptail >/dev/null && [ -t 1 ]; then
+            DEFAULT_ROUTE=$(ip -4 route show default 2>/dev/null | head -n 1 || true)
+            if [ -n "$DEFAULT_ROUTE" ]; then
+                GW=$(echo "$DEFAULT_ROUTE" | awk '{print $3}')
+                DEV=$(echo "$DEFAULT_ROUTE" | awk '{print $5}')
+                SIP=$(ip -4 addr show dev "$DEV" 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n 1 || echo "")
+                SMAC=$(cat "/sys/class/net/$DEV/address" 2>/dev/null || echo "Unknown")
+                whiptail --title "Server Fixed IP Reservation Advisory" \
+                    --msgbox "IMPORTANT SERVER NETWORKING REQUIREMENT:\n\nTo ensure client workstations (AiM-Home, aim-book) never suffer disconnected NFS automounts, ensure a static DHCP reservation is configured on your router:\n\n• Router Admin URL: http://$GW\n• Hostname: $(hostname)\n• Active Interface: $DEV\n• MAC Address: $SMAC\n• Reserved IP: $SIP\n\nPlease configure this reservation in your broadband router." 16 74 3>&1 1>&2 2>&3 || true
+            fi
+        fi
         ;;
     standalone)
         echo "==> Machine configured as Standalone."

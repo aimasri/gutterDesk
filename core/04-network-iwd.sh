@@ -126,4 +126,68 @@ if [ -f /etc/network/interfaces ]; then
 fi
 sudo systemctl disable wpa_supplicant NetworkManager 2>/dev/null || true
 
+# 7. Network Configuration Audit & Router Reservation Check
+echo ""
+echo "=== [Network Audit] Interface Status & Router Reachability ==="
+DEFAULT_ROUTE=$(ip -4 route show default 2>/dev/null | head -n 1 || true)
+if [ -n "$DEFAULT_ROUTE" ]; then
+    GATEWAY=$(echo "$DEFAULT_ROUTE" | awk '{print $3}')
+    DEV=$(echo "$DEFAULT_ROUTE" | awk '{print $5}')
+    IS_DHCP=$(echo "$DEFAULT_ROUTE" | grep -q "proto dhcp" && echo "Dynamic DHCP" || echo "Static")
+    
+    echo "Default Gateway:   $GATEWAY"
+    echo "Primary Interface: $DEV ($IS_DHCP)"
+    
+    echo ""
+    echo "Detected Interfaces:"
+    for iface in /sys/class/net/*; do
+        [ -e "$iface" ] || continue
+        name=$(basename "$iface")
+        [ "$name" = "lo" ] && continue
+        
+        mac=$(cat "$iface/address" 2>/dev/null || echo "Unknown")
+        state=$(cat "$iface/operstate" 2>/dev/null || echo "Unknown")
+        ip_addr=$(ip -4 addr show dev "$name" 2>/dev/null | grep -oP "(?<=inet\s)\d+(\.\d+){3}/\d+" | head -n 1 || echo "None")
+        
+        type="Other"
+        [ -d "$iface/wireless" ] || [ -d "/sys/class/net/$name/phy80211" ] && type="Wi-Fi"
+        [[ "$name" =~ ^(eth|en) ]] && type="Ethernet"
+        [[ "$name" =~ ^tailscale ]] && type="Tailscale Mesh"
+        
+        printf "  - %-12s [%-14s] State: %-6s MAC: %-17s IP: %s\n" "$name" "$type" "$state" "$mac" "$ip_addr"
+    done
+    
+    echo ""
+    if ping -c 1 -W 2 "$GATEWAY" >/dev/null 2>&1; then
+        echo "✓ Local gateway ($GATEWAY) is reachable."
+    else
+        echo "⚠ Notice: Local gateway ($GATEWAY) did not respond to ICMP ping."
+    fi
+    
+    if [ "$IS_DHCP" = "Dynamic DHCP" ]; then
+        PRIMARY_IP=$(ip -4 addr show dev "$DEV" 2>/dev/null | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | head -n 1 || echo "")
+        PRIMARY_MAC=$(cat "/sys/class/net/$DEV/address" 2>/dev/null || echo "Unknown")
+        
+        echo ""
+        echo "------------------------------------------------------------------"
+        echo "  [Router Best Practice: Fixed IP / DHCP Reservation]             "
+        echo "------------------------------------------------------------------"
+        echo "This machine ($(hostname)) is using a dynamic DHCP lease."
+        echo "For central servers (e.g. aim-stream) or fixed desktop nodes,"
+        echo "it is strongly recommended to set a static DHCP reservation in"
+        echo "your broadband router to prevent IP drift, stale DNS, or NFS stalls:"
+        echo ""
+        echo "  Router Admin URL:  http://$GATEWAY"
+        echo "  Hostname:          $(hostname)"
+        echo "  Interface:         $DEV"
+        echo "  MAC Address:       $PRIMARY_MAC"
+        echo "  Current IP:        $PRIMARY_IP"
+        echo "------------------------------------------------------------------"
+    fi
+else
+    echo "Notice: No default IPv4 route detected yet."
+    echo "Connect to local Wi-Fi via iwgtk or Ethernet, then verify router reservation."
+fi
+
+echo ""
 echo "✓ Wireless stack configured successfully."

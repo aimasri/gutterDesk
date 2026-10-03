@@ -38,6 +38,22 @@ sudo ./bootstrap.sh
 sudo reboot
 ```
 
+### D. Broadband Router Fixed IP Reservation (Central Server / NFS Host)
+A central headless node hosting canonical repositories, NFSv4 exports, and the Banyan trading engine (`aim-stream`) requires an immutable IP address on the local LAN:
+
+1. **Audit Network Parameters:**
+   During `core/04-network-iwd.sh` or `install.sh --server`, gutterDesk automatically audits and displays the server's active network configuration:
+   - **Active Interface:** e.g. `wlan0`
+   - **MAC Address:** e.g. `f0:9e:4a:af:79:0e`
+   - **Assigned LAN IP:** e.g. `192.168.1.48`
+   - **Router Gateway URL:** e.g. `http://192.168.1.1`
+
+2. **Configure Router Static Lease / Reservation:**
+   - Log into your broadband router portal (e.g. `http://192.168.1.1`).
+   - Navigate to **DHCP Settings / Address Reservation / Static Leases**.
+   - Create a static reservation binding the server's MAC address to its IP.
+   - **Do not configure a static IP directly on the host:** Leave `aim-stream` set to standard DHCP (`iwd` / Debian netinst). The router guarantees immutable IP delivery without the risk of network bricking if gateways or router models change.
+
 ---
 
 ## 2. Multi-Node Cluster Synchronization Runbook

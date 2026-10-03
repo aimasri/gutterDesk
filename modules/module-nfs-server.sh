@@ -43,7 +43,11 @@ fi
 
 # 3. Configure /etc/exports
 echo "--> Configuring /etc/exports..."
-EXPORT_LINE="$EXPORT_DIR 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash,fsid=0) 100.64.0.0/10(rw,sync,no_subtree_check,no_root_squash,fsid=0)"
+LOCAL_SUBNET=$(ip -4 route show 2>/dev/null | grep proto | grep -v default | awk '{print $1}' | head -n 1 || true)
+[ -z "$LOCAL_SUBNET" ] && LOCAL_SUBNET="192.168.1.0/24"
+echo "Detected LAN Subnet: $LOCAL_SUBNET"
+
+EXPORT_LINE="$EXPORT_DIR $LOCAL_SUBNET(rw,sync,no_subtree_check,no_root_squash,fsid=0) 100.64.0.0/10(rw,sync,no_subtree_check,no_root_squash,fsid=0)"
 
 # Backup /etc/exports if not already backed up
 [ -f /etc/exports ] && [ ! -f /etc/exports.gutterdesk.bak ] && sudo cp /etc/exports /etc/exports.gutterdesk.bak
@@ -80,7 +84,7 @@ EOF
 # 5. Open UFW firewall port if UFW is active
 if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "Status: active"; then
     echo "--> Configuring UFW firewall for NFSv4 (port 2049)..."
-    sudo ufw allow from 192.168.1.0/24 to any port 2049 proto tcp comment 'NFSv4 LAN' >/dev/null || true
+    sudo ufw allow from "$LOCAL_SUBNET" to any port 2049 proto tcp comment 'NFSv4 LAN' >/dev/null || true
     sudo ufw allow from 100.64.0.0/10 to any port 2049 proto tcp comment 'NFSv4 Tailscale' >/dev/null || true
 fi
 
@@ -98,6 +102,45 @@ sudo exportfs -v
 echo ""
 echo "=== NFS Ports Listening ==="
 sudo ss -tlpn | grep 2049 || true
+
+# 8. Server Network Audit & Router Static Reservation Check
+echo ""
+echo "=== [Server Network Audit] Fixed IP & Router Reservation ==="
+DEFAULT_ROUTE=$(ip -4 route show default 2>/dev/null | head -n 1 || true)
+if [ -n "$DEFAULT_ROUTE" ]; then
+    GATEWAY=$(echo "$DEFAULT_ROUTE" | awk '{print $3}')
+    DEV=$(echo "$DEFAULT_ROUTE" | awk '{print $5}')
+    SERVER_IP=$(ip -4 addr show dev "$DEV" 2>/dev/null | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | head -n 1 || echo "")
+    SERVER_MAC=$(cat "/sys/class/net/$DEV/address" 2>/dev/null || echo "Unknown")
+    IS_DHCP=$(echo "$DEFAULT_ROUTE" | grep -q "proto dhcp" && echo "Dynamic DHCP" || echo "Static")
+
+    echo "Hostname:         $(hostname)"
+    echo "Active Interface: $DEV"
+    echo "MAC Address:      $SERVER_MAC"
+    echo "Current LAN IP:   $SERVER_IP"
+    echo "Router Gateway:   $GATEWAY"
+    echo "Allocation Mode:  $IS_DHCP"
+
+    if [ "$IS_DHCP" = "Dynamic DHCP" ]; then
+        echo ""
+        echo "------------------------------------------------------------------"
+        echo "  [CRITICAL NETWORKING REQUIREMENT: ROUTER DHCP RESERVATION]      "
+        echo "------------------------------------------------------------------"
+        echo "This central development server is currently using dynamic DHCP."
+        echo "To ensure client workstations (AiM-Home, aim-book) never suffer"
+        echo "stale DNS, ARP mismatches, or hanging NFS automounts:"
+        echo ""
+        echo "  1. Open your router portal at: http://$GATEWAY"
+        echo "  2. Navigate to: DHCP Settings / Static Leases / Address Reservation"
+        echo "  3. Create a permanent reservation:"
+        echo "       Device Name:  $(hostname)"
+        echo "       MAC Address:  $SERVER_MAC"
+        echo "       Reserved IP:  $SERVER_IP"
+        echo "------------------------------------------------------------------"
+    else
+        echo "✓ Host is configured with a static network assignment."
+    fi
+fi
 
 echo ""
 echo "✓ NFSv4 server setup successfully completed on $(hostname)."

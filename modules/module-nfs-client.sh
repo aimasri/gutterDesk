@@ -72,7 +72,21 @@ fi
 
 # 8. Test connectivity & automount
 echo ""
-echo "=== Testing Automount ==="
+echo "=== Testing Server Connectivity & Route Resolution ==="
+RESOLVED_IPS=$(getent ahosts "$SERVER_HOST" 2>/dev/null | awk '{print $1}' | sort -u || true)
+if [ -n "$RESOLVED_IPS" ]; then
+    echo "Resolved IP(s) for '$SERVER_HOST':"
+    for rip in $RESOLVED_IPS; do
+        if [[ "$rip" =~ ^100\. ]]; then
+            echo "  - $rip (Tailscale WireGuard Mesh)"
+        elif [[ "$rip" =~ ^192\.168\. ]] || [[ "$rip" =~ ^10\. ]] || [[ "$rip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]]; then
+            echo "  - $rip (Direct Physical LAN)"
+        else
+            echo "  - $rip (External / WAN)"
+        fi
+    done
+fi
+
 if ping -c 1 -W 2 "$SERVER_HOST" >/dev/null 2>&1; then
     echo "Host '$SERVER_HOST' is reachable. Triggering automount..."
     if ls "$MOUNT_POINT" >/dev/null 2>&1; then

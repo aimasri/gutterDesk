@@ -89,6 +89,7 @@ To eliminate configuration drift, file duplication, and background synchronizati
 * Hosts all source code repositories in `/home/<user>/projects`.
 * Executes system services, runtime interpreters, build toolchains, and background database engines (PostgreSQL, Redis, Apache2, Wine/MT5).
 * Exports `/home/<user>/projects` via a hardened NFSv4-only server to local LAN (`192.168.1.0/24`) and Tailscale mesh (`100.64.0.0/10`) subnets.
+* **Fixed Router DHCP Reservation:** Requires a static lease on the local broadband router binding its physical MAC address to its assigned LAN IP. This guarantees deterministic NFS sockets and Banyan UDP discovery (`18814` / `18813`) without hardcoding static network profiles on the host.
 
 #### 2. Client Workstations (`AiM-Home`, `aim-book`):
 * **No Local Project Repositories:** Local `~/projects` directories are purged on client machines to prevent version divergence and configuration drift.
