@@ -173,7 +173,7 @@ if [ -n "$DEFAULT_ROUTE" ]; then
         echo "  [Router Best Practice: Fixed IP / DHCP Reservation]             "
         echo "------------------------------------------------------------------"
         echo "This machine ($(hostname)) is using a dynamic DHCP lease."
-        echo "For central servers (e.g. aim-stream) or fixed desktop nodes,"
+        echo "For central development servers or fixed desktop workstations,"
         echo "it is strongly recommended to set a static DHCP reservation in"
         echo "your broadband router to prevent IP drift, stale DNS, or NFS stalls:"
         echo ""

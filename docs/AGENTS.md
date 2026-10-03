@@ -3,7 +3,7 @@
 ## 1. MANDATORY COMPLIANCE GATE
 > **Before executing any tool to write or modify code or system configurations, you MUST output a `<COMPLIANCE_CHECK>` text block in your response.**
 > In this block, you must explicitly state how the exact changes you are about to make comply with:
-> 1. Multi-node cluster topology and sync safety (`aim-stream` vs. `AiM-Home` vs. `aim-book`).
+> 1. Multi-node cluster topology and sync safety (central server vs. client workstations).
 > 2. Script idempotency and privilege separation (`$TARGET_USER` vs. `root`).
 > 3. Blast radius check (evaluating impact on bootloader, systemd services, X11 session, or network stack).
 > 4. Tool constraints (native tools only, no terminal `curl`/`wget`, no arbitrary shortcut test configs).
@@ -23,13 +23,13 @@
 
 ## 3. Multi-Node Cluster Topology & Operational Boundaries
 
-gutterDesk operates across a dedicated three-node physical cluster. Every agent must maintain continuous awareness of the target node and architectural tier:
+gutterDesk operates across a multi-node physical cluster. Every agent must maintain continuous awareness of the target node and architectural tier:
 
 ```
                       +---------------------------------------+
-                      |       aim-stream (100.96.229.63)      |
+                      |           gutterdesk-server           |
                       |   Central Headless Development Host   |
-                      |   - Hosts /home/ahmed/projects        |
+                      |   - Hosts /home/<user>/projects       |
                       |   - NFSv4 Server (fsid=0 pseudo-root) |
                       |   - Docker, Postgres, MT5/Wine        |
                       |   - Antigravity 2.0 Remote Control    |
@@ -40,8 +40,8 @@ gutterDesk operates across a dedicated three-node physical cluster. Every agent 
             +-----------------------------+-----------------------------+
             |                                                           |
 +-----------v---------------------------+   +---------------------------v-----------+
-|        AiM-Home (100.101.23.16)       |   |         aim-book (100.118.241.19)     |
-|     Dual-Monitor Workstation Client    |   |           Laptop Mobile Client        |
+|          workstation-client           |   |             laptop-client             |
+|     Dual-Monitor Workstation Client   |   |          Laptop Mobile Client         |
 | - DP-0 (Landscape) + HDMI-0 (Portrait)|   | - Single eDP-1 Display                |
 | - On-demand NFSv4 Automount           |   | - On-demand NFSv4 Automount           |
 | - No local ~/projects repositories    |   | - Battery Charge Limit (80%)          |
@@ -50,9 +50,9 @@ gutterDesk operates across a dedicated three-node physical cluster. Every agent 
 ```
 
 ### Cluster Rules of Engagement:
-1. **Canonical Source of Truth:** All git development occurs in `/home/ahmed/projects/gutterDesk` on `aim-stream`.
-2. **Never Edit Client Dotfiles In-Place:** Never make permanent configuration changes directly on `AiM-Home` or `aim-book`. All changes must be made in the repository on `aim-stream`, committed to `main`, pushed to GitHub, and pulled/synced to client nodes.
-3. **No Local Code Repositories on Clients:** Workstation and laptop clients (`AiM-Home`, `aim-book`) MUST NOT maintain local git checkouts of project codebases (e.g., `Urban Sugar`, `Banyan`, `Magma`). All project files reside exclusively on `aim-stream` and are accessed via on-demand NFSv4 automount (`~/aim-stream`) or edited remotely via Antigravity SSH Remote.
+1. **Canonical Source of Truth:** All git development occurs in `/home/<user>/projects/gutterDesk` on the central development server.
+2. **Never Edit Client Dotfiles In-Place:** Never make permanent configuration changes directly on client machines. All changes must be made in the repository on the central development server, committed to `main`, pushed to GitHub, and pulled/synced to client nodes.
+3. **No Local Code Repositories on Clients:** Workstation and laptop clients MUST NOT maintain local git checkouts of project codebases. All project files reside exclusively on the central development server and are accessed via on-demand NFSv4 automount (`~/<server-hostname>`) or edited remotely via Antigravity SSH Remote.
 4. **Hardware Specifics Must Be Conditioned:** Code must check for hardware presence before activating hardware-specific daemons:
    - Battery charge threshold scripts must guard on `/sys/class/power_supply/BAT*/`.
    - Rotator daemons must check for `iio-sensor-proxy` and accelerometer D-Bus endpoints.

@@ -15,10 +15,10 @@ This section outlines the definitive deployment process for installing **gutterD
 
 ### B. Debian 13 Net-Install
 1. Boot the minimal netinst USB installer in UEFI mode.
-2. **Hostname:** Enter machine role name (e.g. `aim-stream`, `AiM-Home`, `aim-book`).
+2. **Hostname:** Enter machine role name (e.g. `server`, `workstation`, `laptop`).
 3. **Domain Name:** **Leave completely blank** (prevents DNS resolution conflicts on roaming Wi-Fi).
 4. **Root Password:** **Leave completely blank / empty**. Debian automatically disables the root account and grants unrestricted `sudo` privileges to your user account.
-5. **Username:** Enter primary username (e.g. `ahmed`).
+5. **Username:** Enter primary username (e.g. `user`).
 6. **Partitioning:** Select `Guided - use entire disk` -> `All files in one partition`.
 7. **Package Selection (`tasksel`):**
    * `[ ] Debian desktop environment` (**UNCHECK**)
@@ -39,30 +39,30 @@ sudo reboot
 ```
 
 ### D. Broadband Router Fixed IP Reservation (Central Server / NFS Host)
-A central headless node hosting canonical repositories, NFSv4 exports, and the Banyan trading engine (`aim-stream`) requires an immutable IP address on the local LAN:
+A central headless node hosting canonical repositories, NFSv4 exports, and backend service engines requires an immutable IP address on the local LAN:
 
 1. **Audit Network Parameters:**
    During `core/04-network-iwd.sh` or `install.sh --server`, gutterDesk automatically audits and displays the server's active network configuration:
-   - **Active Interface:** e.g. `wlan0`
-   - **MAC Address:** e.g. `f0:9e:4a:af:79:0e`
-   - **Assigned LAN IP:** e.g. `192.168.1.48`
+   - **Active Interface:** e.g. `wlan0` or `eth0`
+   - **MAC Address:** e.g. `xx:xx:xx:xx:xx:xx`
+   - **Assigned LAN IP:** e.g. `192.168.1.x`
    - **Router Gateway URL:** e.g. `http://192.168.1.1`
 
 2. **Configure Router Static Lease / Reservation:**
    - Log into your broadband router portal (e.g. `http://192.168.1.1`).
    - Navigate to **DHCP Settings / Address Reservation / Static Leases**.
    - Create a static reservation binding the server's MAC address to its IP.
-   - **Do not configure a static IP directly on the host:** Leave `aim-stream` set to standard DHCP (`iwd` / Debian netinst). The router guarantees immutable IP delivery without the risk of network bricking if gateways or router models change.
+   - **Do not configure a static IP directly on the host:** Leave the server set to standard DHCP (`iwd` / Debian netinst). The router guarantees immutable IP delivery without the risk of network bricking if gateways or router models change.
 
 ---
 
 ## 2. Multi-Node Cluster Synchronization Runbook
 
-gutterDesk is deployed across three active physical machines. All codebase enhancements, dotfiles, and system configurations originate on `aim-stream` and are pushed to client workstations.
+gutterDesk supports multi-node cluster topologies. All codebase enhancements, dotfiles, and system configurations originate on the central development server and are pushed to client workstations.
 
 ```
                       +---------------------------------------+
-                      |       aim-stream (100.96.229.63)      |
+                      |           gutterdesk-server           |
                       |          Origin Development           |
                       +-------------------+-------------------+
                                           |
@@ -75,15 +75,15 @@ gutterDesk is deployed across three active physical machines. All codebase enhan
                       | git pull                              | git pull
                       v                                       v
 +---------------------------------------+   +---------------------------------------+
-|        AiM-Home (100.101.23.16)       |   |         aim-book (100.118.241.19)     |
+|           workstation-client          |   |             laptop-client             |
 |              Workstation              |   |                 Laptop                |
 +---------------------------------------+   +---------------------------------------+
 ```
 
 ### Cluster Sync Protocol:
-When changes to dotfiles, scripts, or wallpapers are committed on `aim-stream`:
+When changes to dotfiles, scripts, or wallpapers are committed on the development server:
 
-1. **Push from `aim-stream`:**
+1. **Push from Development Server:**
    ```bash
    cd ~/projects/gutterDesk
    git status
@@ -92,24 +92,24 @@ When changes to dotfiles, scripts, or wallpapers are committed on `aim-stream`:
    git push origin main
    ```
 
-2. **Sync to `AiM-Home` (Workstation):**
+2. **Sync to Workstation Client:**
    ```bash
-   ssh ahmed@AiM-Home "cd ~/gutterDesk && git pull && sudo ./bootstrap.sh"
+   ssh <user>@<workstation-host> "cd ~/gutterDesk && git pull && sudo ./bootstrap.sh"
    ```
 
-3. **Sync to `aim-book` (Laptop):**
+3. **Sync to Laptop Client:**
    ```bash
-   ssh ahmed@aim-book "cd ~/gutterDesk && git pull && sudo ./bootstrap.sh"
+   ssh <user>@<laptop-host> "cd ~/gutterDesk && git pull && sudo ./bootstrap.sh"
    ```
 
 4. **Verify Live X11 Display Sync (Optional):**
    If wallpapers or menus were modified, reconfigure the running session:
    ```bash
    # Reconfigure Openbox menu on workstation
-   ssh ahmed@AiM-Home "DISPLAY=:0 openbox --reconfigure"
+   ssh <user>@<workstation-host> "DISPLAY=:0 openbox --reconfigure"
    
    # Re-apply dual-monitor wallpapers
-   ssh ahmed@AiM-Home "DISPLAY=:0 auto-wallpaper"
+   ssh <user>@<workstation-host> "DISPLAY=:0 auto-wallpaper"
    ```
 
 ---
@@ -150,15 +150,15 @@ iwctl
 ```
 
 ### B. NFSv4 Mount Verification:
-If remote storage at `~/aim-stream` fails to respond on client machines:
+If remote storage at `~/<server-hostname>` fails to respond on client machines:
 ```bash
-# 1. On server (aim-stream): Verify NFS daemon and exports
+# 1. On server: Verify NFS daemon and exports
 sudo systemctl status nfs-server
 sudo exportfs -v
 
 # 2. On client: Check automount status and force mount
-systemctl status home-ahmed-aim\\x2dstream.automount
-ls -la ~/aim-stream
+systemctl status home-$USER-<server-hostname>.automount
+ls -la ~/<server-hostname>
 ```
 
 ### C. Openbox Menu Compilation Reset:

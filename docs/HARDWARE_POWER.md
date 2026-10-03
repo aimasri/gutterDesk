@@ -2,7 +2,7 @@
 
 ## 1. Always-On Server Posture (Lid Switch Handling)
 
-When operating laptops as portable workstations or always-on development servers (e.g. `aim-stream` or `aim-book`), closing the physical clamshell lid must not suspend the operating system or interrupt background compilation, network transfers, or SSH sessions.
+When operating laptops as portable workstations or always-on headless servers, closing the physical clamshell lid must not suspend the operating system or interrupt background compilation, network transfers, or SSH sessions.
 
 ### Implementation:
 gutterDesk overrides default systemd logind behavior via `/etc/systemd/logind.conf.d/gutterdesk-lid.conf`:
@@ -58,7 +58,7 @@ Setting `battery_hide = 101` guarantees that the battery icon, current charging 
 
 ## 3. Dynamic Display Orientation & Wallpaper Engine (`auto-wallpaper`)
 
-gutterDesk workstations often run asymmetric multi-monitor setups (e.g. `AiM-Home` with `DP-0` in 2560x1440 Landscape and `HDMI-0` in 1080x1920 Portrait).
+gutterDesk workstations often run asymmetric multi-monitor setups (e.g. `DP-0` in 2560x1440 Landscape and `HDMI-0` in 1080x1920 Portrait).
 
 Rather than stretching a single wallpaper across disjoint aspect ratios, the `auto-wallpaper` engine queries the X11 display server and applies orientation-matched wallpapers independently per monitor head.
 

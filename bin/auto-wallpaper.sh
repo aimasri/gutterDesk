@@ -2,7 +2,7 @@
 # ==============================================================================
 # Title:           auto-wallpaper.sh
 # Purpose:         Multi-Head Dynamic Orientation-Matched Wallpaper Engine
-# Why This Design: Heterogeneous multi-monitor setups (e.g., AiM-Home workstation
+# Why This Design: Heterogeneous multi-monitor setups (e.g., multi-head workstations
 #                  with a landscape primary and portrait secondary) look distorted
 #                  if a single wallpaper is stretched across all heads. This engine
 #                  inspects each connected xrandr head geometry and sets the

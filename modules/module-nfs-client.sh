@@ -2,7 +2,7 @@
 # ==============================================================================
 # Title:           module-nfs-client.sh
 # Purpose:         Configures Resilient On-Demand Systemd NFSv4 Automount
-# Why This Design: Client workstations (AiM-Home, aim-book) do not maintain duplicate
+# Why This Design: Client workstations do not maintain duplicate
 #                  local codebases. This module adds a native systemd automount entry
 #                  to /etc/fstab with soft failure semantics (timeo=30, retrans=2)
 #                  and idle timeout (60s), ensuring mobile clients never hang during

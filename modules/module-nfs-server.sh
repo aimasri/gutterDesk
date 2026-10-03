@@ -3,7 +3,7 @@
 # Title:           module-nfs-server.sh
 # Purpose:         Provisions Hardened NFSv4-Only Server for Remote Development
 # Why This Design: Two-tier development topology centralizes all source repositories
-#                  on aim-stream. This module configures nfs-kernel-server locked
+#                  on the central server. This module configures nfs-kernel-server locked
 #                  strictly to NFSv4 (port 2049, disabling NFSv2/v3, UDP, and rpcbind)
 #                  and exports ~/projects with fsid=0 (pseudo-root) to LAN and Tailscale.
 # Privilege:       Root (Requires sudo for nfs-kernel-server, /etc/exports & UFW)
@@ -127,7 +127,7 @@ if [ -n "$DEFAULT_ROUTE" ]; then
         echo "  [CRITICAL NETWORKING REQUIREMENT: ROUTER DHCP RESERVATION]      "
         echo "------------------------------------------------------------------"
         echo "This central development server is currently using dynamic DHCP."
-        echo "To ensure client workstations (AiM-Home, aim-book) never suffer"
+        echo "To ensure client workstations never suffer"
         echo "stale DNS, ARP mismatches, or hanging NFS automounts:"
         echo ""
         echo "  1. Open your router portal at: http://$GATEWAY"

@@ -162,7 +162,7 @@ case "$ROLE" in
                 SIP=$(ip -4 addr show dev "$DEV" 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n 1 || echo "")
                 SMAC=$(cat "/sys/class/net/$DEV/address" 2>/dev/null || echo "Unknown")
                 whiptail --title "Server Fixed IP Reservation Advisory" \
-                    --msgbox "IMPORTANT SERVER NETWORKING REQUIREMENT:\n\nTo ensure client workstations (AiM-Home, aim-book) never suffer disconnected NFS automounts, ensure a static DHCP reservation is configured on your router:\n\n• Router Admin URL: http://$GW\n• Hostname: $(hostname)\n• Active Interface: $DEV\n• MAC Address: $SMAC\n• Reserved IP: $SIP\n\nPlease configure this reservation in your broadband router." 16 74 3>&1 1>&2 2>&3 || true
+                    --msgbox "IMPORTANT SERVER NETWORKING REQUIREMENT:\n\nTo ensure client workstations never suffer disconnected NFS automounts, ensure a static DHCP reservation is configured on your router:\n\n• Router Admin URL: http://$GW\n• Hostname: $(hostname)\n• Active Interface: $DEV\n• MAC Address: $SMAC\n• Reserved IP: $SIP\n\nPlease configure this reservation in your broadband router." 16 74 3>&1 1>&2 2>&3 || true
             fi
         fi
         ;;

@@ -81,7 +81,7 @@ Each module is responsible for:
 ---
 
 ### Module 7: NFSv4 Server (`module-nfs-server.sh`)
-* **Purpose:** Exports central project repositories (`/home/<user>/projects`) from `aim-stream` to LAN and Tailscale mesh nodes.
+* **Purpose:** Exports central project repositories (`/home/<user>/projects`) from the central development server to LAN and Tailscale mesh nodes.
 * **Package Manifest:** `nfs-kernel-server`
 * **Architecture:**
   * **Protocol Hardening:** Configured in `/etc/default/nfs-kernel-server` for **NFSv4-only** (TCP port 2049). NFSv2/v3, UDP, and `rpcbind` dependencies are completely disabled.
@@ -92,7 +92,7 @@ Each module is responsible for:
 ---
 
 ### Module 8: NFSv4 Client Automount (`module-nfs-client.sh`)
-* **Purpose:** Configures resilient, zero-overhead on-demand network storage mounting on client workstations (`AiM-Home`, `aim-book`).
+* **Purpose:** Configures resilient, zero-overhead on-demand network storage mounting on client workstations.
 * **Package Manifest:** `nfs-common`
 * **Architecture:**
   * **Systemd Automount (`/etc/fstab`):**
