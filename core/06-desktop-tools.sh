@@ -8,7 +8,9 @@
 #                  and terminal emulators.
 # Privilege:       Dual (Requires sudo for /usr/local/bin; builds tools as target user)
 # Subsystems:      CMake, C++, Antigravity IDE, Antigravity 2.0, Openbox menu
-# Idempotency:     Caches compiled binaries and downloaded archives in /var/cache/gutterdesk/.
+# Idempotency:     Caches downloaded archives in /var/cache/gutterdesk/. gutter tools are
+#                  rebuilt only when upstream HEAD differs from the revision stamp
+#                  /var/cache/gutterdesk/<tool>.rev written at install time.
 # ==============================================================================
 
 set -euo pipefail
@@ -56,26 +58,55 @@ if [ -x "/usr/local/bin/gutterdesk-menu" ]; then
 fi
 
 # 3. Build gutterDeck and gutterTab
+# Staleness is decided by comparing the upstream HEAD commit against a revision
+# stamp written at install time (/var/cache/gutterdesk/<name>.rev). Merely
+# checking for an existing binary would make re-running bootstrap unable to ever
+# upgrade the tools. Offline runs with an existing binary skip gracefully.
+TOOL_REV_DIR="/var/cache/gutterdesk"
+sudo mkdir -p "$TOOL_REV_DIR"
+
 build_tool() {
     local name="$1"
     local repo="$2"
     local build_root="/tmp/gutterdesk-build"
     local dir="$build_root/$name"
-    
-    # Check if already installed
-    if [ -x "/usr/local/bin/$name" ] || [ -x "/usr/local/bin/$(echo "$name" | tr '[:upper:]' '[:lower:]')" ]; then
-        echo "✓ $name binary already installed."
-        return 0
+    local lname
+    lname="$(echo "$name" | tr '[:upper:]' '[:lower:]')"
+    local stamp="$TOOL_REV_DIR/$lname.rev"
+
+    local installed=0
+    if [ -x "/usr/local/bin/$name" ] || [ -x "/usr/local/bin/$lname" ]; then
+        installed=1
     fi
-    
+
+    local remote_rev=""
+    remote_rev="$(run_as_target git ls-remote "$repo" HEAD 2>/dev/null | cut -f1)" || remote_rev=""
+    local local_rev=""
+    [ -f "$stamp" ] && local_rev="$(cat "$stamp")"
+
+    if [ "$installed" -eq 1 ]; then
+        if [ -z "$remote_rev" ]; then
+            echo "⚠ $name: upstream unreachable; keeping installed binary (rev ${local_rev:-unknown})."
+            return 0
+        fi
+        if [ "$remote_rev" = "$local_rev" ]; then
+            echo "✓ $name is up to date (${local_rev:0:7})."
+            return 0
+        fi
+        local shown_rev="${local_rev:0:7}"
+        echo "↻ $name is stale (installed ${shown_rev:-unstamped}, upstream ${remote_rev:0:7}); rebuilding..."
+    fi
+
     run_as_target mkdir -p "$build_root"
     echo "Cloning $name into temporary build directory $dir..."
     rm -rf "$dir"
-    if ! run_as_target git clone "$repo" "$dir"; then
+    if ! run_as_target git clone --depth 1 "$repo" "$dir"; then
         echo "ERROR: Failed to clone $name from $repo" >&2
         exit 1
     fi
-    
+    local built_rev
+    built_rev="$(run_as_target git -C "$dir" rev-parse HEAD)"
+
     if [ -f "$dir/CMakeLists.txt" ]; then
         echo "Building $name as $TARGET_USER..."
         run_as_target mkdir -p "$dir/build"
@@ -83,19 +114,21 @@ build_tool() {
             echo "ERROR: Compilation of $name failed!" >&2
             exit 1
         fi
-        
+
         local bin_source=""
         if [ -f "$dir/build/$name" ]; then
             bin_source="$dir/build/$name"
-        elif [ -f "$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')" ]; then
-            bin_source="$dir/build/$(echo "$name" | tr '[:upper:]' '[:lower:]')"
+        elif [ -f "$dir/build/$lname" ]; then
+            bin_source="$dir/build/$lname"
         fi
-        
+
         if [ -n "$bin_source" ] && [ -x "$bin_source" ]; then
             local bin_basename="$(basename "$bin_source")"
             echo "Installing $bin_basename to /usr/local/bin and $TARGET_HOME/.local/bin..."
             sudo install -m 755 "$bin_source" "/usr/local/bin/$bin_basename"
             run_as_target install -m 755 "$bin_source" "$TARGET_HOME/.local/bin/$bin_basename"
+            echo "$built_rev" | sudo tee "$stamp" >/dev/null
+            echo "✓ $name installed at ${built_rev:0:7}."
         fi
     fi
 }
