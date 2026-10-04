@@ -1,6 +1,8 @@
 # Local private machine backup and credentials
 /backup/
 /private-backup/
+/gutterdesk-private-backup*.tar.gz
+*.tar.gz
 
 # Build and cache artifacts
 build/
