@@ -50,9 +50,9 @@ gutterDesk operates across a multi-node physical cluster. Every agent must maint
 ```
 
 ### Cluster Rules of Engagement:
-1. **Canonical Source of Truth:** All git development occurs in `/home/<user>/projects/gutterDesk` on the central development server.
+1. **Canonical Source of Truth:** All gutterDesk git development occurs in `/home/<user>/gutterDesk` on the central development server. It deliberately lives outside `~/projects`: deployed dotfiles are symlinks into this checkout, so it must be a local path on every node, never the NFS automount.
 2. **Never Edit Client Dotfiles In-Place:** Never make permanent configuration changes directly on client machines. All changes must be made in the repository on the central development server, committed to `main`, pushed to GitHub, and pulled/synced to client nodes.
-3. **No Local Code Repositories on Clients:** Workstation and laptop clients MUST NOT maintain local git checkouts of project codebases. All project files reside exclusively on the central development server and are accessed via on-demand NFSv4 automount (`~/<server-hostname>`) or edited remotely via Antigravity SSH Remote.
+3. **No Local Code Repositories on Clients:** Workstation and laptop clients MUST NOT maintain local git checkouts of project codebases. All project files reside exclusively on the central development server and are accessed via on-demand NFSv4 automount (`~/<server-hostname>`) or edited remotely via Antigravity SSH Remote. The sole exception is the gutterDesk deployment checkout at `~/gutterDesk` on each client: it is **pull-only** (`git pull --ff-only`), never edited or committed to, and exists because dotfiles symlink into it and `bootstrap.sh` runs from it.
 4. **Hardware Specifics Must Be Conditioned:** Code must check for hardware presence before activating hardware-specific daemons:
    - Battery charge threshold scripts must guard on `/sys/class/power_supply/BAT*/`.
    - Rotator daemons must check for `iio-sensor-proxy` and accelerometer D-Bus endpoints.

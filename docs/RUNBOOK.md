@@ -85,7 +85,7 @@ When changes to dotfiles, scripts, or wallpapers are committed on the developmen
 
 1. **Push from Development Server:**
    ```bash
-   cd ~/projects/gutterDesk
+   cd ~/gutterDesk
    git status
    git add <modified-files>
    git commit -m "feat/fix: <descriptive message>"
@@ -100,6 +100,11 @@ When changes to dotfiles, scripts, or wallpapers are committed on the developmen
 3. **Sync to Laptop Client:**
    ```bash
    ssh <user>@<laptop-host> "cd ~/gutterDesk && git pull && sudo ./bootstrap.sh"
+   ```
+
+   For changes confined to one stage, run only that stage (e.g. desktop tools / gutter builds):
+   ```bash
+   ssh <user>@<host> "cd ~/gutterDesk && git pull && sudo ./bootstrap.sh 06"
    ```
 
 4. **Verify Live X11 Display Sync (Optional):**
