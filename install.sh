@@ -35,8 +35,9 @@ fi
 # ------------------------------------------------------------------
 ROLE=""
 EXISTING_SERVER=$(grep -oP '^[a-zA-Z0-9._-]+(?=:/)' /etc/fstab 2>/dev/null | head -n 1)
-DEFAULT_SERVER="${EXISTING_SERVER:-gutterdesk-server}"
+DEFAULT_SERVER="${EXISTING_SERVER:-aim-stream}"
 SERVER_HOST="$DEFAULT_SERVER"
+SERVER_IP=""
 SERVER_EXPORT_DIR="$HOME/projects"
 
 # Parse CLI flags
@@ -44,7 +45,8 @@ while [[ "$#" -gt 0 ]]; do
     case "$1" in
         --client)
             ROLE="client"
-            [ -n "$2" ] && [[ "$2" != --* ]] && { SERVER_HOST="$2"; shift; }
+            [ -n "${2:-}" ] && [[ "$2" != --* ]] && { SERVER_HOST="$2"; shift; }
+            [ -n "${2:-}" ] && [[ "$2" != --* ]] && { SERVER_IP="$2"; shift; }
             ;;
         --server)
             ROLE="server"
@@ -75,9 +77,20 @@ if [ -z "$ROLE" ]; then
             "1")
                 ROLE="client"
                 SERVER_INPUT=$(whiptail --title "NFS Server Hostname" \
-                    --inputbox "Enter hostname or IP of the central development server:" 10 60 "$DEFAULT_SERVER" \
+                    --inputbox "Enter hostname of the central development server:" 10 60 "$DEFAULT_SERVER" \
                     3>&1 1>&2 2>&3) || SERVER_INPUT="$DEFAULT_SERVER"
                 [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
+
+                if [[ "$SERVER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    SERVER_IP="$SERVER_HOST"
+                else
+                    HOST_EXISTING_IP=$(grep -E "[[:space:]]${SERVER_HOST}([[:space:]]|$)" /etc/hosts 2>/dev/null | awk '{print $1}' | head -n 1 || true)
+                    PRESET_IP="${HOST_EXISTING_IP:-192.168.1.10}"
+                    SERVER_IP_INPUT=$(whiptail --title "NFS Server IP Address" \
+                        --inputbox "Enter IP address for '$SERVER_HOST' (LAN IP or Tailscale 100.x.x.x):\nThis will be dynamically written to /etc/hosts." 11 68 "$PRESET_IP" \
+                        3>&1 1>&2 2>&3) || SERVER_IP_INPUT="$PRESET_IP"
+                    [ -n "$SERVER_IP_INPUT" ] && SERVER_IP="$SERVER_IP_INPUT"
+                fi
                 ;;
             "2")
                 ROLE="server"
@@ -116,6 +129,15 @@ if [ -z "$ROLE" ]; then
                 ROLE="client"
                 read -p "Server hostname [$DEFAULT_SERVER]: " SERVER_INPUT
                 [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
+
+                if [[ "$SERVER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    SERVER_IP="$SERVER_HOST"
+                else
+                    HOST_EXISTING_IP=$(grep -E "[[:space:]]${SERVER_HOST}([[:space:]]|$)" /etc/hosts 2>/dev/null | awk '{print $1}' | head -n 1 || true)
+                    PRESET_IP="${HOST_EXISTING_IP:-192.168.1.10}"
+                    read -p "Server IP address for '$SERVER_HOST' [$PRESET_IP]: " SERVER_IP_INPUT
+                    SERVER_IP="${SERVER_IP_INPUT:-$PRESET_IP}"
+                fi
                 ;;
             2)
                 ROLE="server"
@@ -147,8 +169,8 @@ fi
 case "$ROLE" in
     client)
         echo ""
-        echo "==> Configuring Machine as Client Workstation (Target Server: $SERVER_HOST)..."
-        "$SCRIPT_DIR/modules/module-nfs-client.sh" "$SERVER_HOST"
+        echo "==> Configuring Machine as Client Workstation (Target Server: $SERVER_HOST, IP: ${SERVER_IP:-dynamic})..."
+        "$SCRIPT_DIR/modules/module-nfs-client.sh" "$SERVER_HOST" "${SERVER_IP:-}"
         ;;
     server)
         echo ""

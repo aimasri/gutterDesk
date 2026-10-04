@@ -101,4 +101,5 @@ Each module is responsible for:
     ```
   * **Zero Idle Overhead:** Connects on demand when `~/<server>` is accessed; automatically unmounts after 60s of inactivity.
   * **Failure Isolation:** Uses `soft` mount with 3-second timeout (`timeo=30,retrans=2`). If the server goes down or the client roams outside Wi-Fi range, access fails immediately with `EIO` rather than hanging the desktop or file manager.
+  * **Dynamic IP Resolution (`/etc/hosts`):** Prompts for or accepts `<server-ip>` dynamically, mapping it directly in `/etc/hosts` to prevent DNS lookup stalls or router DHCP caching.
   * **PCManFM Integration:** Adds `~/<server>` to GTK 3 bookmarks (`~/.config/gtk-3.0/bookmarks`) for one-click access in the file manager sidebar.
