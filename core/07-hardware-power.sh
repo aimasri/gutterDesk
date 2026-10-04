@@ -83,20 +83,7 @@ else
     fi
 fi
 
-# 3. Check GitHub SSH Authentication Status
-echo "Checking GitHub SSH authentication status for $TARGET_USER..."
-GH_AUTH=$(run_as_target ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T git@github.com 2>&1 || true)
-GH_USER=$(echo "$GH_AUTH" | grep -oP 'Hi \K[^!]+' || true)
-
-if [ "$GH_USER" = "aimasri" ]; then
-    echo "✓ GitHub SSH authentication verified for aimasri."
-elif [ -n "$GH_USER" ]; then
-    echo "Notice: GitHub authenticated as '$GH_USER', expected 'aimasri'."
-else
-    echo "Notice: GitHub SSH authentication is not yet configured for $TARGET_USER."
-fi
-
-# 4. Final home directory permissions heal (targeted only to managed dotfiles, never traversing network mounts)
+# 3. Final home directory permissions heal (targeted only to managed dotfiles, never traversing network mounts)
 if [ "$EUID" -eq 0 ]; then
     for scan_dir in "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" "$TARGET_HOME/.gemini"; do
         [ -d "$scan_dir" ] && chown -R "$TARGET_USER:$TARGET_USER" "$scan_dir" 2>/dev/null || true

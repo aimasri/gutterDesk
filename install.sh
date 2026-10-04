@@ -84,18 +84,24 @@ if [ -z "$ROLE" ]; then
         case "$ROLE_CHOICE" in
             "1")
                 ROLE="client"
-                SERVER_INPUT=$(whiptail --title "NFS Server Hostname" \
-                    --inputbox "Enter hostname of the central development server:" 10 60 "$DEFAULT_SERVER" \
+                SERVER_INPUT=$(whiptail --title "NFS Mount Configuration" \
+                    --inputbox "Enter target server hostname to mount from:" 10 60 "$DEFAULT_SERVER" \
                     3>&1 1>&2 2>&3) || SERVER_INPUT="$DEFAULT_SERVER"
                 [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
+
+                if [ "$SERVER_HOST" = "$(hostname)" ]; then
+                    whiptail --title "Invalid Target" \
+                        --msgbox "Error: Target server cannot be the local host ($(hostname))." 10 60
+                    exit 1
+                fi
 
                 if [[ "$SERVER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                     SERVER_IP="$SERVER_HOST"
                 else
                     HOST_EXISTING_IP=$(grep -E "[[:space:]]${SERVER_HOST}([[:space:]]|$)" /etc/hosts 2>/dev/null | awk '{print $1}' | head -n 1 || true)
                     PRESET_IP="${HOST_EXISTING_IP:-192.168.1.10}"
-                    SERVER_IP_INPUT=$(whiptail --title "NFS Server IP Address" \
-                        --inputbox "Enter IP address for '$SERVER_HOST' (LAN IP or Tailscale 100.x.x.x):\nThis will be dynamically written to /etc/hosts." 11 68 "$PRESET_IP" \
+                    SERVER_IP_INPUT=$(whiptail --title "Target Server IP Address" \
+                        --inputbox "Enter IP address for target '$SERVER_HOST' (LAN IP or Tailscale 100.x.x.x):\nThis will be dynamically written to /etc/hosts." 11 68 "$PRESET_IP" \
                         3>&1 1>&2 2>&3) || SERVER_IP_INPUT="$PRESET_IP"
                     [ -n "$SERVER_IP_INPUT" ] && SERVER_IP="$SERVER_IP_INPUT"
                 fi
@@ -149,15 +155,20 @@ if [ -z "$ROLE" ]; then
         case "${ROLE_INPUT:-1}" in
             1)
                 ROLE="client"
-                read -p "Server hostname [$DEFAULT_SERVER]: " SERVER_INPUT
+                read -p "Target server hostname [$DEFAULT_SERVER]: " SERVER_INPUT
                 [ -n "$SERVER_INPUT" ] && SERVER_HOST="$SERVER_INPUT"
+
+                if [ "$SERVER_HOST" = "$(hostname)" ]; then
+                    echo "Error: Target server cannot be the local host ($(hostname))." >&2
+                    exit 1
+                fi
 
                 if [[ "$SERVER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                     SERVER_IP="$SERVER_HOST"
                 else
                     HOST_EXISTING_IP=$(grep -E "[[:space:]]${SERVER_HOST}([[:space:]]|$)" /etc/hosts 2>/dev/null | awk '{print $1}' | head -n 1 || true)
                     PRESET_IP="${HOST_EXISTING_IP:-192.168.1.10}"
-                    read -p "Server IP address for '$SERVER_HOST' [$PRESET_IP]: " SERVER_IP_INPUT
+                    read -p "IP address for target '$SERVER_HOST' [$PRESET_IP]: " SERVER_IP_INPUT
                     SERVER_IP="${SERVER_IP_INPUT:-$PRESET_IP}"
                 fi
 

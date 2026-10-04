@@ -25,22 +25,25 @@ MOUNT_POINT="$TARGET_HOME/$SERVER_HOST"
 SERVER_EXPORT="${SERVER_HOST}:/"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+if [ "$SERVER_HOST" = "$(hostname)" ]; then
+    echo "Error: Target server cannot be the local host ($(hostname))." >&2
+    exit 1
+fi
+
 echo "=== [NFS Client] Configuring Resilient Automount ($SERVER_HOST) for $TARGET_USER ==="
 
 # 0. Configure /etc/hosts mapping dynamically
 if [ -n "$SERVER_IP" ]; then
     echo "--> Configuring /etc/hosts mapping: $SERVER_IP -> $SERVER_HOST..."
-    if grep -qE "[[:space:]]${SERVER_HOST}([[:space:]]|$)" /etc/hosts 2>/dev/null; then
-        sudo sed -i "/[[:space:]]${SERVER_HOST}\([[:space:]]\|$\)/d" /etc/hosts
-    fi
+    sudo sed -i -E "/^127\./! { /[[:space:]]${SERVER_HOST}([[:space:]]|$)/d }" /etc/hosts
     echo "$SERVER_IP $SERVER_HOST" | sudo tee -a /etc/hosts >/dev/null
     echo "  ✓ /etc/hosts updated: $SERVER_IP $SERVER_HOST"
 elif ! [[ "$SERVER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     if ! grep -qE "[[:space:]]${SERVER_HOST}([[:space:]]|$)" /etc/hosts 2>/dev/null; then
         if [ -t 0 ]; then
-            read -p "Enter IP address for server '$SERVER_HOST' (leave empty to skip /etc/hosts): " PROMPTED_IP
+            read -p "Enter IP address for target server '$SERVER_HOST' (leave empty to skip /etc/hosts): " PROMPTED_IP
             if [ -n "$PROMPTED_IP" ]; then
-                sudo sed -i "/[[:space:]]${SERVER_HOST}\([[:space:]]\|$\)/d" /etc/hosts
+                sudo sed -i -E "/^127\./! { /[[:space:]]${SERVER_HOST}([[:space:]]|$)/d }" /etc/hosts
                 echo "$PROMPTED_IP $SERVER_HOST" | sudo tee -a /etc/hosts >/dev/null
                 echo "  ✓ /etc/hosts updated: $PROMPTED_IP $SERVER_HOST"
                 SERVER_IP="$PROMPTED_IP"
