@@ -42,10 +42,14 @@ if [ ! -d "$TARGET_HOME/projects/Banyan/.git" ]; then
         run_as_target git clone "$BANYAN_REPO_URL" "$TARGET_HOME/projects/Banyan" 2>/dev/null || true
     fi
     if [ ! -d "$TARGET_HOME/projects/Banyan/.git" ]; then
-        run_as_target git clone "https://github.com/aimasri/Banyan.git" "$TARGET_HOME/projects/Banyan" || {
-            echo "Error: Failed to clone Banyan repository." >&2
-            exit 1
-        }
+        run_as_target git clone "https://github.com/aimasri/Banyan.git" "$TARGET_HOME/projects/Banyan" 2>/dev/null || true
+    fi
+    if [ ! -d "$TARGET_HOME/projects/Banyan/.git" ]; then
+        echo "Error: Failed to clone Banyan repository." >&2
+        echo "The Banyan repository is private. Please ensure your GitHub SSH key" >&2
+        echo "(~/.ssh/id_ed25519) is connected (via ./connect.sh in private backup)" >&2
+        echo "or authenticate via 'gh auth login' before installing the dashboard." >&2
+        exit 1
     fi
 fi
 

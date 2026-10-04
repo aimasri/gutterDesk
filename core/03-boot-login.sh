@@ -33,15 +33,29 @@ if [ -d "$SCRIPT_DIR/themes/plymouth/gutterdesk" ]; then
     fi
 fi
 
-# 2. Ensure 'splash' is in GRUB_CMDLINE_LINUX_DEFAULT
+# 2. Configure GRUB Boot Parameters & Sanitize Hazardous Flags
 if [ -f /etc/default/grub ]; then
+    GRUB_MODIFIED=0
+
+    # Purge acpi=off if present (disables DRM/KMS and PCIe GPU drivers, dropping laptops into TTY)
+    if grep -q '\bacpi=off\b' /etc/default/grub; then
+        echo "Warning: Detected 'acpi=off' in /etc/default/grub which breaks GPU display initialization. Removing..."
+        sudo sed -i 's/\bacpi=off\b//g' /etc/default/grub
+        GRUB_MODIFIED=1
+    fi
+
+    # Ensure 'splash' is in GRUB_CMDLINE_LINUX_DEFAULT for Plymouth
     if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
-        if ! grep -q 'splash' /etc/default/grub; then
+        if ! grep -q '\bsplash\b' /etc/default/grub; then
             echo "Enabling graphical boot splash in /etc/default/grub..."
             sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 splash"/' /etc/default/grub
-            sudo sed -i 's/  */ /g' /etc/default/grub
-            which update-grub >/dev/null 2>&1 && sudo update-grub || true
+            GRUB_MODIFIED=1
         fi
+    fi
+
+    if [ "$GRUB_MODIFIED" -eq 1 ]; then
+        sudo sed -i 's/  */ /g; s/" /"/g; s/ "/"/g' /etc/default/grub
+        which update-grub >/dev/null 2>&1 && sudo update-grub || true
     fi
 fi
 
