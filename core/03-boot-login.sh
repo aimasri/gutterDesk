@@ -52,8 +52,9 @@ if [ -f "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" ]; then
     sudo cp "$SCRIPT_DIR/themes/lightdm/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf.d/99_gutterdesk.conf
 fi
 
-# 4. Enable Core System Daemons
+# 4. Enable Core System Daemons & Set Graphical Target
 sudo systemctl enable lightdm 2>/dev/null || true
+sudo systemctl set-default graphical.target 2>/dev/null || true
 sudo systemctl enable bluetooth 2>/dev/null || true
 sudo systemctl enable ssh 2>/dev/null || true
 sudo systemctl enable --now systemd-timesyncd 2>/dev/null || true
