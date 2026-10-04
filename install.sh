@@ -39,6 +39,7 @@ DEFAULT_SERVER="${EXISTING_SERVER:-aim-stream}"
 SERVER_HOST="$DEFAULT_SERVER"
 SERVER_IP=""
 SERVER_EXPORT_DIR="$HOME/projects"
+DEV_ROUTE_MODE=""
 
 # Parse CLI flags
 while [[ "$#" -gt 0 ]]; do
@@ -47,6 +48,13 @@ while [[ "$#" -gt 0 ]]; do
             ROLE="client"
             [ -n "${2:-}" ] && [[ "$2" != --* ]] && { SERVER_HOST="$2"; shift; }
             [ -n "${2:-}" ] && [[ "$2" != --* ]] && { SERVER_IP="$2"; shift; }
+            ;;
+        --route-domains)
+            DEV_ROUTE_MODE="${2:-lan}"
+            shift
+            ;;
+        --no-route-domains)
+            DEV_ROUTE_MODE="skip"
             ;;
         --server)
             ROLE="server"
@@ -90,6 +98,20 @@ if [ -z "$ROLE" ]; then
                         --inputbox "Enter IP address for '$SERVER_HOST' (LAN IP or Tailscale 100.x.x.x):\nThis will be dynamically written to /etc/hosts." 11 68 "$PRESET_IP" \
                         3>&1 1>&2 2>&3) || SERVER_IP_INPUT="$PRESET_IP"
                     [ -n "$SERVER_IP_INPUT" ] && SERVER_IP="$SERVER_IP_INPUT"
+                fi
+
+                if [ -z "$DEV_ROUTE_MODE" ]; then
+                    ROUTE_CHOICE=$(whiptail --title "Development Domains Routing" \
+                        --menu "Route local development domains (*.test) to central server ($SERVER_HOST)?\n\nAllows testing web projects directly in the workstation browser." 16 76 3 \
+                        "1" "LAN Connection ($SERVER_IP) [Fastest, home/office Wi-Fi]" \
+                        "2" "Tailscale Mesh [Encrypted mesh, works while roaming]" \
+                        "3" "Skip Domain Routing [Manual configuration]" \
+                        3>&1 1>&2 2>&3) || ROUTE_CHOICE="1"
+                    case "$ROUTE_CHOICE" in
+                        "1") DEV_ROUTE_MODE="lan" ;;
+                        "2") DEV_ROUTE_MODE="tailscale" ;;
+                        *) DEV_ROUTE_MODE="skip" ;;
+                    esac
                 fi
                 ;;
             "2")
@@ -138,6 +160,19 @@ if [ -z "$ROLE" ]; then
                     read -p "Server IP address for '$SERVER_HOST' [$PRESET_IP]: " SERVER_IP_INPUT
                     SERVER_IP="${SERVER_IP_INPUT:-$PRESET_IP}"
                 fi
+
+                if [ -z "$DEV_ROUTE_MODE" ]; then
+                    echo "Route local development domains (*.test) to central server ($SERVER_HOST)?"
+                    echo "  1) LAN Connection ($SERVER_IP) [Recommended for home/office]"
+                    echo "  2) Tailscale Mesh [Roaming]"
+                    echo "  3) Skip Domain Routing"
+                    read -p "Selection [1-3] (default 1): " DEV_ROUTE_INPUT
+                    case "${DEV_ROUTE_INPUT:-1}" in
+                        1) DEV_ROUTE_MODE="lan" ;;
+                        2) DEV_ROUTE_MODE="tailscale" ;;
+                        *) DEV_ROUTE_MODE="skip" ;;
+                    esac
+                fi
                 ;;
             2)
                 ROLE="server"
@@ -166,11 +201,12 @@ if [ -z "$ROLE" ]; then
 fi
 
 # Execute role configuration
+export GUTTERDESK_ROLE="$ROLE"
 case "$ROLE" in
     client)
         echo ""
         echo "==> Configuring Machine as Client Workstation (Target Server: $SERVER_HOST, IP: ${SERVER_IP:-dynamic})..."
-        "$SCRIPT_DIR/modules/module-nfs-client.sh" "$SERVER_HOST" "${SERVER_IP:-}"
+        "$SCRIPT_DIR/modules/module-nfs-client.sh" "$SERVER_HOST" "${SERVER_IP:-}" "${DEV_ROUTE_MODE:-lan}"
         ;;
     server)
         echo ""
@@ -204,6 +240,9 @@ echo "----------------------------------------------------------"
 echo "  Step 2: Specialized Capability Modules                  "
 echo "----------------------------------------------------------"
 
+WEBSTACK_LABEL="Web Development Stack (Apache2, Postgres, Redis, PHP)"
+[ "$ROLE" = "client" ] && WEBSTACK_LABEL="Web Development Stack (Standby / Backup Environment)"
+
 if command -v whiptail >/dev/null; then
     CHOICES=$(whiptail --title "gutterDesk Module Selector" \
         --checklist "Select additional capability modules to activate on this machine:\n(Use Space to select, Enter to confirm)" 21 76 6 \
@@ -211,7 +250,7 @@ if command -v whiptail >/dev/null; then
         "2" "Banyan Trading Engine (Wine64, Python venv, MT5 daemon)" OFF \
         "3" "Banyan Trading Dashboard (C++ desktop monitoring UI)" OFF \
         "4" "Jellyfin Media Server & Tailscale Mesh Node" OFF \
-        "5" "Web Development Stack (Apache2, Postgres, Redis, repos)" OFF \
+        "5" "$WEBSTACK_LABEL" OFF \
         "6" "Torrent Machine (Transmission-gtk, UFW)" OFF \
         3>&1 1>&2 2>&3) || true
 else
@@ -221,7 +260,7 @@ else
     echo "  2) Banyan Trading Engine"
     echo "  3) Banyan Trading Dashboard"
     echo "  4) Jellyfin & Tailscale"
-    echo "  5) Web Development Stack"
+    echo "  5) $WEBSTACK_LABEL"
     echo "  6) Torrent Machine"
     read -p "Selection: " CHOICES
     CHOICES=$(echo "$CHOICES" | tr ',' ' ')

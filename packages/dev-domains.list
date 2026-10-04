@@ -1,0 +1,11 @@
+# ==============================================================================
+# gutterDesk Local Web Development Domains
+# Purpose: Declarative manifest of local project domains (.test)
+# Routing:
+#   - Primary Server (aim-stream) / Standalone: 127.0.0.1
+#   - Client Workstations (aim-book, aim-home): Central Server IP (LAN or Tailscale)
+# ==============================================================================
+urbansugar.test
+fussybaby.test
+legacy.fussybaby.test
+magma.test

@@ -98,6 +98,7 @@ gutterDesk/
 │   └── 07-hardware-power.sh     # Lid switch, battery threshold & permissions
 ├── bin/                         # Centralized Distro System & User Utilities
 │   ├── gutterdesk-menu          # Modular Openbox menu compiler & toggler
+│   ├── gutterdesk-dev-route     # Development domain routing switcher (LAN, Tailscale, Local standby)
 │   ├── gutterdesk-rotator       # Accelerometer & touchscreen orientation daemon
 │   ├── auto-wallpaper.sh        # Multi-head orientation-matched wallpaper engine
 │   ├── tint2-network.sh         # Zero-overhead live Wi-Fi telemetry executor

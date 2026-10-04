@@ -20,8 +20,10 @@ TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 
 SERVER_HOST="${1:-aim-stream}"
 SERVER_IP="${2:-}"
+DEV_ROUTE_MODE="${3:-yes}"
 MOUNT_POINT="$TARGET_HOME/$SERVER_HOST"
 SERVER_EXPORT="${SERVER_HOST}:/"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "=== [NFS Client] Configuring Resilient Automount ($SERVER_HOST) for $TARGET_USER ==="
 
@@ -41,8 +43,37 @@ elif ! [[ "$SERVER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 sudo sed -i "/[[:space:]]${SERVER_HOST}\([[:space:]]\|$\)/d" /etc/hosts
                 echo "$PROMPTED_IP $SERVER_HOST" | sudo tee -a /etc/hosts >/dev/null
                 echo "  ✓ /etc/hosts updated: $PROMPTED_IP $SERVER_HOST"
+                SERVER_IP="$PROMPTED_IP"
             fi
         fi
+    fi
+fi
+
+# 0b. Configure local development domains (*.test) routing to server
+if [ "$DEV_ROUTE_MODE" != "no" ] && [ "$DEV_ROUTE_MODE" != "skip" ]; then
+    DEV_ROUTE_TOOL="$SCRIPT_DIR/../bin/gutterdesk-dev-route"
+    [ ! -x "$DEV_ROUTE_TOOL" ] && DEV_ROUTE_TOOL="/usr/local/bin/gutterdesk-dev-route"
+    if [ -x "$DEV_ROUTE_TOOL" ]; then
+        echo "--> Configuring development domain routing via gutterdesk-dev-route..."
+        mkdir -p "$TARGET_HOME/.config/gutterdesk"
+        cat <<EOF > "$TARGET_HOME/.config/gutterdesk/dev-route.conf"
+SERVER_HOST="$SERVER_HOST"
+SERVER_LAN_IP="${SERVER_IP:-192.168.1.10}"
+SERVER_TS_IP="100.67.215.75"
+EOF
+        chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config/gutterdesk/dev-route.conf" 2>/dev/null || true
+
+        case "$DEV_ROUTE_MODE" in
+            tailscale|ts|roaming)
+                "$DEV_ROUTE_TOOL" tailscale
+                ;;
+            custom:*)
+                "$DEV_ROUTE_TOOL" custom "${DEV_ROUTE_MODE#custom:}"
+                ;;
+            *)
+                "$DEV_ROUTE_TOOL" lan
+                ;;
+        esac
     fi
 fi
 

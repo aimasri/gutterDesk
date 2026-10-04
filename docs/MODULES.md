@@ -61,9 +61,13 @@ Each module is responsible for:
 ---
 
 ### Module 5: Web Development Stack (`module-webstack.sh`)
-* **Purpose:** Full-stack local web hosting, reverse proxying, and database services.
-* **Package Manifest:** `packages/webstack.list` (`apache2`, `postgresql`, `redis-server`, `php`, `composer`)
-* **Architecture:**
+* **Purpose:** Full-stack local web hosting, reverse proxying, and database services for primary servers or standby failover workstations.
+* **Package Manifest:** `packages/webstack.list` (`apache2`, `postgresql`, `redis-server`, `php`, `composer`, `mkcert`)
+* **Declarative Domains:** `packages/dev-domains.list` (declarative list of active `.test` project domains).
+* **Architecture & Operational Modes:**
+  * **Dual Deployment Modes:**
+    * **Primary Server / Standalone:** Configures local Apache, databases, and binds `.test` domains in `/etc/hosts` to `127.0.0.1`.
+    * **Standby / Backup Workstation:** When installed on a machine configured as an NFS client (e.g. `aim-home`), installs local database engines, Apache, and virtual hosts as a redundant failover stack, but preserves domain routing to the central server (`aim-stream`) by default to prevent silent split-brain divergence.
   * **Apache Modules:** Enables `mod_rewrite`, `mod_ssl`, `mod_proxy`, and `mod_proxy_http`.
   * **Repository Hydration:** Reads `~/.config/gutterdesk/webstack_repos.conf` and automates cloning of core web repositories into `~/projects/`.
   * **Virtual Hosts:** Deploys developer vhosts from `~/.config/gutterdesk/vhosts/*.conf` into `/etc/apache2/sites-available/`.
@@ -92,7 +96,7 @@ Each module is responsible for:
 ---
 
 ### Module 8: NFSv4 Client Automount (`module-nfs-client.sh`)
-* **Purpose:** Configures resilient, zero-overhead on-demand network storage mounting on client workstations.
+* **Purpose:** Configures resilient, zero-overhead on-demand network storage mounting and development domain routing on client workstations.
 * **Package Manifest:** `nfs-common`
 * **Architecture:**
   * **Systemd Automount (`/etc/fstab`):**
@@ -102,4 +106,19 @@ Each module is responsible for:
   * **Zero Idle Overhead:** Connects on demand when `~/<server>` is accessed; automatically unmounts after 60s of inactivity.
   * **Failure Isolation:** Uses `soft` mount with 3-second timeout (`timeo=30,retrans=2`). If the server goes down or the client roams outside Wi-Fi range, access fails immediately with `EIO` rather than hanging the desktop or file manager.
   * **Dynamic IP Resolution (`/etc/hosts`):** Prompts for or accepts `<server-ip>` dynamically, mapping it directly in `/etc/hosts` to prevent DNS lookup stalls or router DHCP caching.
+  * **Development Domain Routing (`*.test`):** Prompts during client setup to route central web development domains (`urbansugar.test`, `fussybaby.test`, `legacy.fussybaby.test`, `magma.test`) to the central server IP.
   * **PCManFM Integration:** Adds `~/<server>` to GTK 3 bookmarks (`~/.config/gtk-3.0/bookmarks`) for one-click access in the file manager sidebar.
+
+---
+
+## 3. Developer Tooling & Utilities
+
+### Development Domain Routing Switcher (`gutterdesk-dev-route`)
+* **Binary Location:** `/usr/local/bin/gutterdesk-dev-route` (source in `bin/gutterdesk-dev-route`).
+* **Purpose:** Atomically switches `/etc/hosts` development domain routing between network profiles.
+* **Commands:**
+  * `gutterdesk-dev-route lan` (or `primary`): Routes domains to the central development server over high-speed physical LAN (`192.168.1.10`).
+  * `gutterdesk-dev-route tailscale` (or `roaming`): Routes domains to the central development server over the encrypted Tailscale mesh (`100.67.215.75`) when traveling or off local Wi-Fi.
+  * `gutterdesk-dev-route local` (or `standby`): Fails over domain routing to `127.0.0.1` for standalone development or when the primary server is offline.
+  * `gutterdesk-dev-route status`: Displays current active target IP, reachability status (ping latency & HTTP port 80 check), and mapped domain resolutions.
+

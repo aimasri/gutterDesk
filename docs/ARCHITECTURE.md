@@ -107,6 +107,23 @@ To eliminate configuration drift, file duplication, and background synchronizati
   * **Fault Tolerance & Roaming Safety:** If a client laptop disconnects from Wi-Fi or leaves the LAN, the `soft` mount with a 3-second timeout (`timeo=30,retrans=2`) immediately returns `EIO` to user space. It **never freezes** the Openbox desktop session, file manager, or system shutdown process.
   * **Pseudo-Root Scoping (`fsid=0`):** The server exports `~/projects` as the NFSv4 pseudo-root (`fsid=0`). Client mounts mounting `<server>:/` access exclusively project codebases while completely hiding the server's private SSH keys (`~/.ssh`), credentials (`~/.gemini`), and session files (`.Xauthority`).
 
+### Development Domain Routing & Standby Failover Architecture (`*.test`)
+
+To ensure seamless browser-based development without running heavy web/database servers on client laptops, gutterDesk implements a decoupled domain routing architecture:
+
+1. **Declarative Domain Manifest (`packages/dev-domains.list`):**
+   Active local domains (`urbansugar.test`, `fussybaby.test`, `legacy.fussybaby.test`, `magma.test`) are maintained declaratively.
+2. **Central Server Routing:**
+   * **Primary Server (`aim-stream`):** Hosts Apache, PostgreSQL, Redis, and codebases. Development domains resolve locally to `127.0.0.1`.
+   * **Client Workstations (`aim-book`, `aim-home`):** Route development domains to the central development server IP (`192.168.1.10` LAN or `100.67.215.75` Tailscale).
+3. **Standby Failover Workstation Model (`aim-home`):**
+   * Primary workstations can install the full webstack (`module-webstack.sh`) to serve as a redundant standby server.
+   * **Split-Brain Immunity:** To prevent divergent database records and stale session state, domain routing on the standby workstation points to the primary server by default.
+   * **Instant Failover:** If the central server is offline, running `gutterdesk-dev-route local` on the standby machine immediately repoints domains to its local Apache/PostgreSQL instance.
+4. **Roaming Mesh Mobility (`aim-book`):**
+   * On home/office Wi-Fi: `gutterdesk-dev-route lan` binds domains to `192.168.1.10` for zero-latency wire speed.
+   * Off-site / roaming: `gutterdesk-dev-route tailscale` binds domains to `100.67.215.75`, routing browser and API calls securely over Tailscale.
+
 ---
 
 ## 4. Dotfile Architecture & Atomic Deployment

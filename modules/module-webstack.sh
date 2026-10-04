@@ -82,22 +82,55 @@ fi
 # Ensure traversal permissions on user home directory so Apache www-data can serve projects
 chmod o+x "$TARGET_HOME"
 
-# Sync custom local domain mappings from ~/.config/gutterdesk/hosts if present
-HOSTS_CONF="$TARGET_HOME/.config/gutterdesk/hosts"
-if [ -f "$HOSTS_CONF" ]; then
-    echo "=== Syncing Local Development Domains from $HOSTS_CONF ==="
-    while IFS= read -r line || [ -n "$line" ]; do
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-        domain=$(echo "$line" | awk '{print $2}')
-        if [ -n "$domain" ]; then
-            if ! grep -qw "$domain" /etc/hosts; then
-                echo "$line" | sudo tee -a /etc/hosts >/dev/null
-                echo "  ✓ Added $domain to /etc/hosts"
-            else
-                echo "  ✓ $domain already present in /etc/hosts"
-            fi
+# Deploy and sync local development domains declaratively
+DEV_DOMAINS_MANIFEST="$SCRIPT_DIR/packages/dev-domains.list"
+if [ -f "$DEV_DOMAINS_MANIFEST" ] && [ ! -f "$TARGET_HOME/.config/gutterdesk/dev-domains.list" ]; then
+    cp "$DEV_DOMAINS_MANIFEST" "$TARGET_HOME/.config/gutterdesk/dev-domains.list"
+    chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config/gutterdesk/dev-domains.list" 2>/dev/null || true
+fi
+
+# Detect if machine is a client workstation mounting a central server
+IS_NFS_CLIENT=false
+if grep -qE "nfs4.*x-systemd\.automount" /etc/fstab 2>/dev/null || [ "${GUTTERDESK_ROLE:-}" = "client" ]; then
+    IS_NFS_CLIENT=true
+fi
+
+DEV_ROUTE_TOOL="$SCRIPT_DIR/bin/gutterdesk-dev-route"
+[ ! -x "$DEV_ROUTE_TOOL" ] && DEV_ROUTE_TOOL="/usr/local/bin/gutterdesk-dev-route"
+
+if [ "$IS_NFS_CLIENT" = true ]; then
+    echo "=== Web Development Stack: Configured as Standby / Backup Environment ==="
+    echo "--> Detected workstation with active central server NFS mount."
+    echo "--> Apache virtual hosts & runtime packages installed locally for standby resilience."
+    if ! grep -q "fussybaby\.test" /etc/hosts 2>/dev/null; then
+        if [ -x "$DEV_ROUTE_TOOL" ]; then
+            echo "--> Initializing domain routing to central server (LAN)..."
+            "$DEV_ROUTE_TOOL" lan
         fi
-    done < "$HOSTS_CONF"
+    else
+        echo "--> Preserving existing active development domain routing in /etc/hosts."
+    fi
+    echo "--> Tip: Run 'gutterdesk-dev-route local' to failover to local standby Apache."
+else
+    echo "=== Syncing Local Development Domains to 127.0.0.1 ==="
+    if [ -x "$DEV_ROUTE_TOOL" ]; then
+        "$DEV_ROUTE_TOOL" local
+    else
+        HOSTS_CONF="$TARGET_HOME/.config/gutterdesk/hosts"
+        [ ! -f "$HOSTS_CONF" ] && HOSTS_CONF="$DEV_DOMAINS_MANIFEST"
+        while IFS= read -r line || [ -n "$line" ]; do
+            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+            domain=$(echo "$line" | awk '{print $NF}')
+            if [ -n "$domain" ]; then
+                if ! grep -qw "$domain" /etc/hosts; then
+                    echo "127.0.0.1   $domain" | sudo tee -a /etc/hosts >/dev/null
+                    echo "  ✓ Added 127.0.0.1 $domain to /etc/hosts"
+                else
+                    echo "  ✓ $domain already present in /etc/hosts"
+                fi
+            fi
+        done < "$HOSTS_CONF"
+    fi
 fi
 
 # Deploy and enable custom Apache virtual hosts from ~/.config/gutterdesk/vhosts if present

@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Title:           gutterdesk-dev-route
+# Purpose:         Manage and Switch Development Domain Routing (.test)
+# Why This Design: Client workstations and standby backup servers need to dynamically
+#                  switch development domain routing between:
+#                    1) Primary Server via LAN (192.168.1.10) for maximum wire speed
+#                    2) Primary Server via Tailscale (100.67.215.75) for off-site roaming
+#                    3) Local Standby Environment (127.0.0.1) for offline failover
+# Privilege:       Target User / Sudo (Uses sudo only for updating /etc/hosts)
+# Subsystems:      /etc/hosts, ~/.config/gutterdesk/hosts, glibc resolver
+# Idempotency:     Atomically replaces delimited block in /etc/hosts.
+# ==============================================================================
+
+set -euo pipefail
+
+TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6 2>/dev/null || echo "$HOME")
+[ -z "$TARGET_HOME" ] && TARGET_HOME="$HOME"
+
+CONFIG_FILE="$TARGET_HOME/.config/gutterdesk/dev-route.conf"
+[ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+
+# Configurable defaults
+SERVER_HOST="${SERVER_HOST:-aim-stream}"
+SERVER_LAN_IP="${SERVER_LAN_IP:-192.168.1.10}"
+SERVER_TS_IP="${SERVER_TS_IP:-100.67.215.75}"
+LOCAL_IP="127.0.0.1"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGES_DOMAINS="$SCRIPT_DIR/../packages/dev-domains.list"
+USER_DOMAINS="$TARGET_HOME/.config/gutterdesk/dev-domains.list"
+
+get_domains() {
+    local domains=()
+    local src=""
+    if [ -f "$USER_DOMAINS" ]; then
+        src="$USER_DOMAINS"
+    elif [ -f "$PACKAGES_DOMAINS" ]; then
+        src="$PACKAGES_DOMAINS"
+    elif [ -f "$TARGET_HOME/.config/gutterdesk/hosts" ]; then
+        grep -v '^[[:space:]]*#' "$TARGET_HOME/.config/gutterdesk/hosts" | awk '{print $2}' | grep -v '^$' || true
+        return
+    else
+        echo "urbansugar.test"
+        echo "fussybaby.test"
+        echo "legacy.fussybaby.test"
+        echo "magma.test"
+        return
+    fi
+
+    grep -v '^[[:space:]]*#' "$src" | grep -v '^[[:space:]]*$' || true
+}
+
+flush_dns() {
+    if command -v resolvectl >/dev/null 2>&1 && systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+        sudo resolvectl flush-caches 2>/dev/null || true
+    elif command -v systemd-resolve >/dev/null 2>&1 && systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+        sudo systemd-resolve --flush-caches 2>/dev/null || true
+    fi
+}
+
+apply_routing() {
+    local target_ip="$1"
+    local mode_label="$2"
+    local domains
+    mapfile -t domains < <(get_domains)
+
+    if [ "${#domains[@]}" -eq 0 ]; then
+        echo "Error: No development domains found to map." >&2
+        exit 1
+    fi
+
+    echo "==> Routing development domains to: $target_ip ($mode_label)..."
+
+    # Build domain regex for clean removal of existing unmanaged entries
+    local regex_pattern
+    regex_pattern=$(printf "%s|" "${domains[@]}" | sed 's/|$/\n/')
+
+    # Remove existing matching lines from /etc/hosts
+    sudo sed -i -E "/\b(${regex_pattern//\./\\.})\b/d" /etc/hosts
+
+    # Remove previous delimited block if exists
+    sudo sed -i '/# --- BEGIN GUTTERDESK DEV ROUTE ---/,/# --- END GUTTERDESK DEV ROUTE ---/d' /etc/hosts
+
+    # Remove any excessive trailing blank lines
+    sudo sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' /etc/hosts
+
+    # Generate new delimited block
+    local block
+    block=$(cat <<EOF
+
+# --- BEGIN GUTTERDESK DEV ROUTE ---
+# Mode: $mode_label | Target: $target_ip | Server: $SERVER_HOST | Updated: $(date +'%Y-%m-%d %H:%M:%S')
+$(for d in "${domains[@]}"; do printf "%-16s %s\n" "$target_ip" "$d"; done)
+# --- END GUTTERDESK DEV ROUTE ---
+EOF
+)
+
+    echo "$block" | sudo tee -a /etc/hosts >/dev/null
+
+    # Synchronize ~/.config/gutterdesk/hosts for offline/tools compatibility
+    mkdir -p "$TARGET_HOME/.config/gutterdesk"
+    cat <<EOF > "$TARGET_HOME/.config/gutterdesk/hosts"
+# gutterDesk Development Domains (Active: $mode_label -> $target_ip)
+$(for d in "${domains[@]}"; do printf "%-16s %s\n" "$target_ip" "$d"; done)
+EOF
+    chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config/gutterdesk/hosts" 2>/dev/null || true
+
+    # Persist active mode in configuration
+    cat <<EOF > "$CONFIG_FILE"
+# gutterDesk dev-route runtime configuration
+SERVER_HOST="$SERVER_HOST"
+SERVER_LAN_IP="$SERVER_LAN_IP"
+SERVER_TS_IP="$SERVER_TS_IP"
+ACTIVE_MODE="$mode_label"
+ACTIVE_IP="$target_ip"
+LAST_SWITCHED="$(date +'%Y-%m-%d %H:%M:%S')"
+EOF
+    chown "$TARGET_USER:$TARGET_USER" "$CONFIG_FILE" 2>/dev/null || true
+
+    flush_dns
+
+    echo "✓ Development domains successfully routed to $target_ip ($mode_label)"
+    for d in "${domains[@]}"; do
+        echo "  • $d -> $target_ip"
+    done
+}
+
+show_status() {
+    echo "=========================================================="
+    echo "       gutterDesk Development Domain Routing Status       "
+    echo "=========================================================="
+    echo "Server Hostname : $SERVER_HOST"
+    echo "Configured LAN  : $SERVER_LAN_IP"
+    echo "Configured TS   : $SERVER_TS_IP"
+    echo ""
+
+    local current_ip
+    current_ip=$(grep -m1 -E "fussybaby\.test|urbansugar\.test" /etc/hosts 2>/dev/null | awk '{print $1}' || echo "unmapped")
+    local current_mode="Unknown"
+
+    if [ "$current_ip" = "$SERVER_LAN_IP" ]; then
+        current_mode="Primary Server via LAN ($SERVER_LAN_IP)"
+    elif [ "$current_ip" = "$SERVER_TS_IP" ]; then
+        current_mode="Primary Server via Tailscale ($SERVER_TS_IP)"
+    elif [ "$current_ip" = "$LOCAL_IP" ]; then
+        current_mode="Local Standby / Loopback ($LOCAL_IP)"
+    elif [ "$current_ip" = "unmapped" ]; then
+        current_mode="NOT CONFIGURED IN /etc/hosts"
+    else
+        current_mode="Custom Target ($current_ip)"
+    fi
+
+    echo "Active Routing  : $current_mode"
+    echo ""
+    echo "Target Reachability Check:"
+    if [ "$current_ip" != "unmapped" ]; then
+        if ping -c 1 -W 1 "$current_ip" >/dev/null 2>&1; then
+            echo "  ✓ Ping ICMP to $current_ip : ONLINE"
+        else
+            echo "  ✗ Ping ICMP to $current_ip : UNREACHABLE"
+        fi
+
+        if command -v nc >/dev/null 2>&1; then
+            if nc -z -w 1 "$current_ip" 80 >/dev/null 2>&1; then
+                echo "  ✓ HTTP Port 80 on $current_ip : LISTENING"
+            else
+                echo "  ✗ HTTP Port 80 on $current_ip : CLOSED / NO SERVICE"
+            fi
+        fi
+    fi
+
+    echo ""
+    echo "Managed Domains:"
+    mapfile -t domains < <(get_domains)
+    for d in "${domains[@]}"; do
+        local resolved
+        resolved=$(getent ahosts "$d" 2>/dev/null | head -n 1 | awk '{print $1}' || echo "unresolved")
+        printf "  %-24s => %s\n" "$d" "$resolved"
+    done
+    echo "=========================================================="
+}
+
+show_help() {
+    cat <<EOF
+Usage: gutterdesk-dev-route [COMMAND]
+
+Commands:
+  lan | primary | server     Route domains to central server LAN IP ($SERVER_LAN_IP)
+  tailscale | ts | roaming   Route domains to central server Tailscale IP ($SERVER_TS_IP)
+  local | standby | backup   Route domains to local host loopback ($LOCAL_IP)
+  custom <IP>                Route domains to custom target IP
+  status                     Display active routing target and test reachability
+  help | -h | --help         Display this help message
+
+Examples:
+  gutterdesk-dev-route lan         # At home/office: use fast LAN connection
+  gutterdesk-dev-route tailscale   # Roaming on laptop: use encrypted Tailscale mesh
+  gutterdesk-dev-route local       # Server down: failover to local standby environment
+  gutterdesk-dev-route status      # Inspect active mappings and connection health
+EOF
+}
+
+COMMAND="${1:-status}"
+
+case "$COMMAND" in
+    lan|primary|server)
+        apply_routing "$SERVER_LAN_IP" "LAN"
+        ;;
+    tailscale|ts|roaming)
+        apply_routing "$SERVER_TS_IP" "Tailscale"
+        ;;
+    local|standby|backup|loopback)
+        apply_routing "$LOCAL_IP" "Local-Standby"
+        ;;
+    custom)
+        if [ -z "${2:-}" ]; then
+            echo "Error: 'custom' requires an IP address argument (e.g. gutterdesk-dev-route custom 192.168.1.50)" >&2
+            exit 1
+        fi
+        apply_routing "$2" "Custom-$2"
+        ;;
+    status)
+        show_status
+        ;;
+    help|-h|--help)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $COMMAND" >&2
+        show_help >&2
+        exit 1
+        ;;
+esac
