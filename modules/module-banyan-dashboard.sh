@@ -149,7 +149,6 @@ fi
 MENU_BIN=""
 for candidate in \
     "/usr/local/bin/gutterdesk-menu" \
-    "$TARGET_HOME/.local/bin/gutterdesk-menu" \
     "$SCRIPT_DIR/bin/gutterdesk-menu"; do
     if [ -x "$candidate" ]; then
         MENU_BIN="$candidate"

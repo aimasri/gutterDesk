@@ -137,7 +137,7 @@ def apply_rotation(target_xrandr_rotation, matrix=None):
 
     # 3. Update wallpaper via auto-wallpaper if present
     for wp_cmd in ["auto-wallpaper", "auto-wallpaper.sh"]:
-        auto_wp = shutil.which(wp_cmd) or os.path.expanduser(f"~/.local/bin/{wp_cmd}")
+        auto_wp = shutil.which(wp_cmd) or f"/usr/local/bin/{wp_cmd}"
         if auto_wp and os.path.isfile(auto_wp) and os.access(auto_wp, os.X_OK):
             try:
                 subprocess.Popen([auto_wp])

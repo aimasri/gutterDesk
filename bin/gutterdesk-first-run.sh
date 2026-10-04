@@ -61,7 +61,7 @@ if command -v guake >/dev/null 2>&1; then
     fi
     guake --show
     sleep 0.5
-    guake -e "\"$TARGET_HOME/.local/bin/gutterdesk-first-run.sh\" --prompt-in-terminal"
+    guake -e "\"/usr/local/bin/gutterdesk-first-run.sh\" --prompt-in-terminal"
 elif command -v x-terminal-emulator >/dev/null 2>&1; then
-    x-terminal-emulator -e "bash -c '\"$TARGET_HOME/.local/bin/gutterdesk-first-run.sh\" --prompt-in-terminal; exec bash'" &
+    x-terminal-emulator -e "bash -c '\"/usr/local/bin/gutterdesk-first-run.sh\" --prompt-in-terminal; exec bash'" &
 fi

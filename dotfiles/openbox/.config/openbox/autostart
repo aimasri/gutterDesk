@@ -25,10 +25,10 @@ fi
 
 ## Sequential Desktop Group Start:
 ## 1. Auto-detect orientation and apply matching wallpapers (backgrounded)
-([ -x ~/.local/bin/auto-wallpaper.sh ] && ~/.local/bin/auto-wallpaper.sh || (nitrogen --restore &)) &
+([ -x /usr/local/bin/auto-wallpaper.sh ] && /usr/local/bin/auto-wallpaper.sh || (nitrogen --restore &)) &
 
 ## 1b. Automatic screen & touch rotation daemon (for 2-in-1 laptops)
-[ -x ~/.local/bin/gutterdesk-rotator ] && (~/.local/bin/gutterdesk-rotator --daemon &)
+[ -x /usr/local/bin/gutterdesk-rotator ] && (/usr/local/bin/gutterdesk-rotator --daemon &)
 
 ## 2. Start compositor (picom)
 which picom >/dev/null 2>&1 && (picom -b &)
@@ -75,5 +75,5 @@ for notifyd in /usr/lib/*/xfce4/notifyd/xfce4-notifyd /usr/lib/xfce4-notifyd/xfc
 done
 
 ## 12. First-boot modular installer prompt
-[ -x ~/.local/bin/gutterdesk-first-run.sh ] && (~/.local/bin/gutterdesk-first-run.sh &)
+[ -x /usr/local/bin/gutterdesk-first-run.sh ] && (/usr/local/bin/gutterdesk-first-run.sh &)
 

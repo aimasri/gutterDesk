@@ -112,7 +112,7 @@ gutterDesk operates across a multi-node physical cluster. Every agent must maint
 ### B. Pure Dotfile Hierarchy
 - The `dotfiles/` directory contains **pure configuration files only**.
 - Executable binaries, background daemons, and utility scripts MUST NOT reside inside `dotfiles/` (e.g. `dotfiles/openbox/.local/bin/` is forbidden).
-- All custom scripts and executables belong in the top-level `bin/` directory and are deployed to `/usr/local/bin/` or `~/.local/bin/`.
+- All custom scripts and executables belong in the top-level `bin/` directory and are deployed to `/usr/local/bin/` **only**. Never install a second copy into `~/.local/bin/`: the Openbox session PATH lacks `~/.local/bin` while login shells put it first, so duplicates cause launch-path-dependent version drift. Callers must use PATH or the absolute `/usr/local/bin/` path. `~/.local/bin/` is reserved for per-user module builds that exist in exactly one place (e.g. `banyan_daemon`).
 
 ### C. Staged Modular Openbox Menu
 - The Openbox root menu is dynamically compiled by `gutterdesk-menu`.

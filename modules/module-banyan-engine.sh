@@ -421,8 +421,8 @@ fi
 # Enable Openbox Trading menu
 if command -v gutterdesk-menu >/dev/null 2>&1; then
     gutterdesk-menu enable trading
-elif [ -x "$HOME/.local/bin/gutterdesk-menu" ]; then
-    "$HOME/.local/bin/gutterdesk-menu" enable trading
+elif [ -x "/usr/local/bin/gutterdesk-menu" ]; then
+    "/usr/local/bin/gutterdesk-menu" enable trading
 fi
 
 echo ""

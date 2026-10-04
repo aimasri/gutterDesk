@@ -31,24 +31,23 @@ run_as_target() {
 
 echo "--> [7/8] Deploying system utilities, building gutter tools & Antigravity suite..."
 
-# 1. Deploy custom binaries from bin/ to /usr/local/bin and ~/.local/bin
-echo "Deploying gutterDesk system and user utilities from bin/..."
-sudo mkdir -p /usr/local/bin "$TARGET_HOME/.local/bin"
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local" 2>/dev/null || true
+# 1. Deploy custom binaries from bin/ to /usr/local/bin (single canonical location).
+# A second per-user copy in ~/.local/bin caused version drift: the Openbox session
+# PATH lacks ~/.local/bin while login shells put it first, so the binary executed
+# depended on how a tool was launched. All callers use /usr/local/bin or PATH.
+echo "Deploying gutterDesk system utilities from bin/ to /usr/local/bin..."
+sudo mkdir -p /usr/local/bin
 
 for tool in "$SCRIPT_DIR/bin/"*; do
     if [ -f "$tool" ]; then
         bname=$(basename "$tool")
         sudo install -m 755 "$tool" "/usr/local/bin/$bname"
-        run_as_target install -m 755 "$tool" "$TARGET_HOME/.local/bin/$bname"
     fi
 done
 
 # Compatibility aliases
 sudo ln -sf /usr/local/bin/auto-wallpaper.sh /usr/local/bin/auto-wallpaper 2>/dev/null || true
-run_as_target ln -sf "$TARGET_HOME/.local/bin/auto-wallpaper.sh" "$TARGET_HOME/.local/bin/auto-wallpaper" 2>/dev/null || true
 sudo ln -sf /usr/local/bin/tint2-network.sh /usr/local/bin/tint2-network 2>/dev/null || true
-run_as_target ln -sf "$TARGET_HOME/.local/bin/tint2-network.sh" "$TARGET_HOME/.local/bin/tint2-network" 2>/dev/null || true
 
 # 2. Compile staged Openbox menu
 [ -L "$TARGET_HOME/.config/openbox/menu.xml" ] && rm -f "$TARGET_HOME/.config/openbox/menu.xml"
@@ -124,9 +123,8 @@ build_tool() {
 
         if [ -n "$bin_source" ] && [ -x "$bin_source" ]; then
             local bin_basename="$(basename "$bin_source")"
-            echo "Installing $bin_basename to /usr/local/bin and $TARGET_HOME/.local/bin..."
+            echo "Installing $bin_basename to /usr/local/bin..."
             sudo install -m 755 "$bin_source" "/usr/local/bin/$bin_basename"
-            run_as_target install -m 755 "$bin_source" "$TARGET_HOME/.local/bin/$bin_basename"
             echo "$built_rev" | sudo tee "$stamp" >/dev/null
             echo "✓ $name installed at ${built_rev:0:7}."
         fi
@@ -140,8 +138,6 @@ rm -rf "/tmp/gutterdesk-build"
 # Casing compatibility symlinks
 [ -f /usr/local/bin/gutterdeck ] && sudo ln -sf /usr/local/bin/gutterdeck /usr/local/bin/gutterDeck || true
 [ -f /usr/local/bin/guttertab ] && sudo ln -sf /usr/local/bin/guttertab /usr/local/bin/gutterTab || true
-[ -f "$TARGET_HOME/.local/bin/gutterdeck" ] && run_as_target ln -sf "$TARGET_HOME/.local/bin/gutterdeck" "$TARGET_HOME/.local/bin/gutterDeck" || true
-[ -f "$TARGET_HOME/.local/bin/guttertab" ] && run_as_target ln -sf "$TARGET_HOME/.local/bin/guttertab" "$TARGET_HOME/.local/bin/gutterTab" || true
 
 # 4. Install Google Antigravity Suite
 CACHE_DIR="/var/cache/gutterdesk"
@@ -181,7 +177,6 @@ if [ ! -f /usr/share/antigravity/antigravity-ide ]; then
 fi
 sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/bin/antigravity
 sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/local/bin/antigravity
-run_as_target ln -sf /usr/bin/antigravity "$TARGET_HOME/.local/bin/antigravity"
 
 # B. Antigravity 2.0 (Agents Manager)
 HUB_URL="https://storage.googleapis.com/antigravity-public/antigravity-hub/2.17.0-5217732355031040/linux-x64/Antigravity.tar.gz"
@@ -196,7 +191,6 @@ if [ ! -f /opt/Antigravity2/antigravity ]; then
     sudo chmod 4755 /opt/Antigravity2/chrome-sandbox 2>/dev/null || true
 fi
 sudo ln -sf /opt/Antigravity2/antigravity /usr/local/bin/antigravity2
-run_as_target ln -sf /usr/local/bin/antigravity2 "$TARGET_HOME/.local/bin/antigravity2"
 
 # C. Desktop Applications & Pixmaps
 sudo mkdir -p /usr/share/applications /usr/share/pixmaps
@@ -242,7 +236,25 @@ else
 fi
 EOF
 sudo chmod 755 /usr/local/bin/x-terminal-emulator
-run_as_target ln -sf /usr/local/bin/x-terminal-emulator "$TARGET_HOME/.local/bin/x-terminal-emulator"
+
+# 5b. Migrate away from legacy per-user duplicates in ~/.local/bin.
+# Removes only entries this stage used to create, and only when the canonical
+# /usr/local/bin counterpart exists. Per-user module builds (e.g. banyan_*) are
+# never touched. Re-running is a no-op once the duplicates are gone.
+LEGACY_USER_BINS=(auto-wallpaper tint2-network gutterdeck gutterDeck guttertab gutterTab
+                  antigravity antigravity2 x-terminal-emulator)
+for tool in "$SCRIPT_DIR/bin/"*; do
+    if [ -f "$tool" ]; then
+        LEGACY_USER_BINS+=("$(basename "$tool")")
+    fi
+done
+for bname in "${LEGACY_USER_BINS[@]}"; do
+    legacy="$TARGET_HOME/.local/bin/$bname"
+    if { [ -e "$legacy" ] || [ -L "$legacy" ]; } && [ -e "/usr/local/bin/$bname" ]; then
+        run_as_target rm -f "$legacy"
+        echo "Removed legacy duplicate $legacy (canonical: /usr/local/bin/$bname)"
+    fi
+done
 
 # 6. Global PATH configuration in /etc/profile.d/gutterdesk.sh
 sudo tee /etc/profile.d/gutterdesk.sh >/dev/null << 'EOF'

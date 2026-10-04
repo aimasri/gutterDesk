@@ -131,6 +131,6 @@ To ensure seamless browser-based development without running heavy web/database 
 gutterDesk rejects heavy external dotfile managers (e.g. Chezmoi, GNU Stow) in favor of direct atomic symlinking (`ln -sf`).
 
 * **Source Directory:** `dotfiles/<category>/` in the repository root.
-* **Separation of Concerns:** `dotfiles/` contains pure configuration files. Binaries and system scripts are located in `bin/` and deployed to `/usr/local/bin/` or `~/.local/bin/`.
+* **Separation of Concerns:** `dotfiles/` contains pure configuration files. Binaries and system scripts are located in `bin/` and deployed to `/usr/local/bin/` only (no per-user duplicates in `~/.local/bin/`, which would drift depending on launch PATH).
 * **Deployment Mechanism:** `core/04-dotfiles.sh` walks each category, mirrors parent directory structures in `$TARGET_HOME`, and atomically creates symlinks pointing back to the repository.
 * **Configuration Drift Immunity:** Because `$TARGET_HOME/.config/...` files are direct symlinks to the git repository, any modification made in the desktop environment is immediately reflected in `git status` on the development server.
