@@ -40,8 +40,12 @@ STOW_PKGS="openbox tint2 themes ssh gemini guake gtk volumeicon gsimplecal iwgtk
 BACKUP_ROOT="$TARGET_HOME/.local/state/gutterdesk/dotfile-backups/$(date +%Y%m%d-%H%M%S)"
 
 # Ensure target home base directories exist with proper user ownership
-sudo mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh"
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" 2>/dev/null || true
+if [ "$EUID" -eq 0 ]; then
+    mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh"
+    chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" 2>/dev/null || true
+else
+    mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh"
+fi
 
 # 1. Repo-owned configuration: symlinked into the checkout.
 #    These files are authored in git and never written by their applications.
@@ -57,17 +61,17 @@ for pkg in $STOW_PKGS; do
                 src="$pkg_dir/$rel"
                 dst="$TARGET_HOME/$rel"
 
-                mkdir -p "$(dirname "$dst")"
+                run_as_target mkdir -p "$(dirname "$dst")"
                 if [ -d "$dst" ] && [ ! -L "$dst" ]; then
-                    mkdir -p "$(dirname "$BACKUP_ROOT/$rel")"
-                    mv "$dst" "$BACKUP_ROOT/$rel"
+                    run_as_target mkdir -p "$(dirname "$BACKUP_ROOT/$rel")"
+                    run_as_target mv "$dst" "$BACKUP_ROOT/$rel"
                     echo "  ⚠ Moved conflicting directory ~/$rel to $BACKUP_ROOT/"
                 elif [ -f "$dst" ] && [ ! -L "$dst" ] && ! cmp -s "$src" "$dst"; then
-                    mkdir -p "$(dirname "$BACKUP_ROOT/$rel")"
-                    mv "$dst" "$BACKUP_ROOT/$rel"
+                    run_as_target mkdir -p "$(dirname "$BACKUP_ROOT/$rel")"
+                    run_as_target mv "$dst" "$BACKUP_ROOT/$rel"
                     echo "  ⚠ Backed up locally modified ~/$rel to $BACKUP_ROOT/"
                 fi
-                ln -sfn "$src" "$dst"
+                run_as_target ln -sfn "$src" "$dst"
             done
         )
     fi
@@ -114,7 +118,12 @@ fi
 echo "Configuring default desktop associations..."
 run_as_target xdg-mime default pcmanfm.desktop inode/directory 2>/dev/null || true
 
-# Ensure all deployed dotfiles are owned by TARGET_USER
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
+# Ensure all deployed dotfiles are owned by TARGET_USER (targeted only to managed dotfiles, never traversing network mounts)
+if [ "$EUID" -eq 0 ]; then
+    for scan_dir in "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" "$TARGET_HOME/.gemini"; do
+        [ -d "$scan_dir" ] && chown -R "$TARGET_USER:$TARGET_USER" "$scan_dir" 2>/dev/null || true
+    done
+    find "$TARGET_HOME" -maxdepth 1 -lname "$DOTFILES_DIR/*" -exec chown -h "$TARGET_USER:$TARGET_USER" {} + 2>/dev/null || true
+fi
 
 echo "✓ Dotfiles deployed successfully via atomic symlinks."

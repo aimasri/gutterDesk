@@ -96,7 +96,12 @@ else
     echo "Notice: GitHub SSH authentication is not yet configured for $TARGET_USER."
 fi
 
-# 4. Final home directory permissions heal
-sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME" 2>/dev/null || true
+# 4. Final home directory permissions heal (targeted only to managed dotfiles, never traversing network mounts)
+if [ "$EUID" -eq 0 ]; then
+    for scan_dir in "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" "$TARGET_HOME/.gemini"; do
+        [ -d "$scan_dir" ] && chown -R "$TARGET_USER:$TARGET_USER" "$scan_dir" 2>/dev/null || true
+    done
+    find "$TARGET_HOME" -maxdepth 1 -lname "$SCRIPT_DIR/*" -exec chown -h "$TARGET_USER:$TARGET_USER" {} + 2>/dev/null || true
+fi
 
 echo "✓ Power management, battery threshold, and permissions configured successfully."
