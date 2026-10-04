@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Title:           05-dotfiles.sh
-# Purpose:         Deploys Pure Declarative Dotfiles via Direct Atomic Symlinks
+# Purpose:         Deploys repo-owned dotfiles via atomic symlinks and seeds app-owned
+#                  settings once (seeds/), never overwriting user state.
 # Why This Design: Eliminates third-party package manager overhead (Chezmoi, GNU Stow)
-#                  while preventing configuration drift. Any modification in
-#                  $HOME/.config is immediately tracked by git in the repository.
+#                  while preventing configuration drift. Repo-owned files are symlinks,
+#                  so edits are tracked by git. App-owned files (rewritten by their
+#                  applications) are copied only when absent, because symlinking them
+#                  either breaks on atomic save or leaks local edits into the checkout.
 # Privilege:       Dual (Ensures user ownership of all created links in $TARGET_HOME)
-# Subsystems:      Openbox, Tint2, PCManFM, GTK, Guake, Volumeicon, Gsimplecal
-# Idempotency:     Atomic symlinking (`ln -sf`) safely overwrites existing links.
+# Subsystems:      Openbox, Tint2, PCManFM, GTK, Guake, Volumeicon, Gsimplecal, Antigravity
+# Idempotency:     `ln -sfn` re-links safely; diverged real files are moved to
+#                  ~/.local/state/gutterdesk/dotfile-backups/<ts>/ instead of being
+#                  clobbered; seeds use copy-if-absent; dangling links into dotfiles/
+#                  are pruned.
 # ==============================================================================
 
 set -euo pipefail
@@ -29,12 +35,18 @@ run_as_target() {
 echo "--> [6/8] Deploying declarative dotfiles into $TARGET_HOME..."
 
 DOTFILES_DIR="$SCRIPT_DIR/dotfiles"
-STOW_PKGS="openbox tint2 pcmanfm themes ssh antigravity gemini gutterdeck guttertab guake gtk volumeicon gsimplecal iwgtk"
+SEEDS_DIR="$SCRIPT_DIR/seeds"
+STOW_PKGS="openbox tint2 themes ssh gemini guake gtk volumeicon gsimplecal iwgtk"
+BACKUP_ROOT="$TARGET_HOME/.local/state/gutterdesk/dotfile-backups/$(date +%Y%m%d-%H%M%S)"
 
 # Ensure target home base directories exist with proper user ownership
 sudo mkdir -p "$TARGET_HOME/.config" "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/bin" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh"
 sudo chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" 2>/dev/null || true
 
+# 1. Repo-owned configuration: symlinked into the checkout.
+#    These files are authored in git and never written by their applications.
+#    A real file found at a link destination is only replaced if identical;
+#    otherwise it is moved to $BACKUP_ROOT so no local data is ever lost.
 for pkg in $STOW_PKGS; do
     pkg_dir="$DOTFILES_DIR/$pkg"
     if [ -d "$pkg_dir" ]; then
@@ -44,17 +56,53 @@ for pkg in $STOW_PKGS; do
                 rel="${f#./}"
                 src="$pkg_dir/$rel"
                 dst="$TARGET_HOME/$rel"
-                
+
                 mkdir -p "$(dirname "$dst")"
-                [ -d "$dst" ] && [ ! -L "$dst" ] && rm -rf "$dst"
-                ln -sf "$src" "$dst"
+                if [ -d "$dst" ] && [ ! -L "$dst" ]; then
+                    mkdir -p "$(dirname "$BACKUP_ROOT/$rel")"
+                    mv "$dst" "$BACKUP_ROOT/$rel"
+                    echo "  ⚠ Moved conflicting directory ~/$rel to $BACKUP_ROOT/"
+                elif [ -f "$dst" ] && [ ! -L "$dst" ] && ! cmp -s "$src" "$dst"; then
+                    mkdir -p "$(dirname "$BACKUP_ROOT/$rel")"
+                    mv "$dst" "$BACKUP_ROOT/$rel"
+                    echo "  ⚠ Backed up locally modified ~/$rel to $BACKUP_ROOT/"
+                fi
+                ln -sfn "$src" "$dst"
             done
         )
     fi
 done
 
-# Clean up leftover legacy .bak files
-find "$TARGET_HOME/.config" "$TARGET_HOME/.local" -name "*.bak" -delete 2>/dev/null || true
+# 2. App-owned state: seeded once, never overwritten.
+#    Applications such as PCManFM and the Antigravity editors rewrite their own
+#    settings. Symlinking them would either break the link (atomic saves) or
+#    write user changes into the git checkout, so they are copied only when absent.
+if [ -d "$SEEDS_DIR" ]; then
+    (
+        cd "$SEEDS_DIR"
+        find . -type f | while read -r f; do
+            rel="${f#./}"
+            dst="$TARGET_HOME/$rel"
+            # Replace a legacy symlink into the repo (pre-seed layout) with a real copy
+            if [ -L "$dst" ] && [[ "$(readlink "$dst")" == "$SCRIPT_DIR/"* ]]; then
+                rm -f "$dst"
+            fi
+            if [ ! -e "$dst" ]; then
+                run_as_target mkdir -p "$(dirname "$dst")"
+                run_as_target cp "$SEEDS_DIR/$rel" "$dst"
+                echo "  ✓ Seeded ~/$rel"
+            fi
+        done
+    )
+fi
+
+# 3. Prune dangling symlinks that point into the dotfiles tree (files removed or
+#    renamed upstream), so retired configuration never lingers on a node.
+for scan_dir in "$TARGET_HOME/.config" "$TARGET_HOME/.local" "$TARGET_HOME/.themes" "$TARGET_HOME/.ssh" "$TARGET_HOME/.gemini"; do
+    [ -d "$scan_dir" ] || continue
+    find "$scan_dir" -xtype l -lname "$DOTFILES_DIR/*" -print -delete 2>/dev/null | sed 's/^/  ✓ Pruned retired dotfile link: /' || true
+done
+find "$TARGET_HOME" -maxdepth 1 -xtype l -lname "$DOTFILES_DIR/*" -print -delete 2>/dev/null | sed 's/^/  ✓ Pruned retired dotfile link: /' || true
 
 # Restore Guake terminal styling & Twilight palette
 if [ -f "$TARGET_HOME/.config/guake/guake-preferences.ini" ]; then

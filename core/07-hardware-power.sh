@@ -43,12 +43,17 @@ HandleLidSwitchExternalPower=ignore
 HandleLidSwitchDocked=ignore
 EOF
 
-# 2. Configure 80% battery charging threshold if supported by hardware
+# 2. Configure 80% battery charging threshold if supported by hardware.
+#    The sysfs node can exist while the firmware rejects writes (EIO), so support
+#    is proven by an actual write rather than by file presence.
 BAT_THRESHOLD_FILE=$(ls /sys/class/power_supply/BAT*/charge_control_end_threshold 2>/dev/null | head -n 1 || echo "")
-if [ -n "$BAT_THRESHOLD_FILE" ]; then
-    echo "Hardware battery charge control detected ($BAT_THRESHOLD_FILE). Setting 80% threshold..."
-    echo 80 | sudo tee "$BAT_THRESHOLD_FILE" >/dev/null || true
-    
+BAT_SUPPORTED=0
+if [ -n "$BAT_THRESHOLD_FILE" ] && echo 80 | sudo tee "$BAT_THRESHOLD_FILE" >/dev/null 2>&1; then
+    BAT_SUPPORTED=1
+fi
+
+if [ "$BAT_SUPPORTED" -eq 1 ]; then
+    echo "Hardware battery charge control verified ($BAT_THRESHOLD_FILE). Threshold set to 80%."
     sudo tee /etc/systemd/system/battery-charge-threshold.service >/dev/null << EOF
 [Unit]
 Description=Set Battery Charge Threshold to 80% (Battery Health)
@@ -65,6 +70,17 @@ WantedBy=multi-user.target
 EOF
     sudo systemctl daemon-reload
     sudo systemctl enable battery-charge-threshold.service 2>/dev/null || true
+else
+    if [ -n "$BAT_THRESHOLD_FILE" ]; then
+        echo "Notice: $BAT_THRESHOLD_FILE exists but the firmware rejects writes; skipping charge threshold."
+    fi
+    if [ -f /etc/systemd/system/battery-charge-threshold.service ]; then
+        sudo systemctl disable battery-charge-threshold.service 2>/dev/null || true
+        sudo rm -f /etc/systemd/system/battery-charge-threshold.service
+        sudo systemctl daemon-reload
+        sudo systemctl reset-failed battery-charge-threshold.service 2>/dev/null || true
+        echo "Removed unsupported battery-charge-threshold.service."
+    fi
 fi
 
 # 3. Check GitHub SSH Authentication Status

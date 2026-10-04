@@ -60,6 +60,9 @@ libpam-gnome-keyring
 ripgrep
 fd-find
 
+# Remote Access (cluster sync over SSH; enabled in core/03)
+openssh-server
+
 # Bluetooth
 bluez
 blueman
@@ -82,7 +85,6 @@ curl
 wget
 qt6-base-dev
 qt6-tools-dev
-libqt6core5compat6-dev
 libqt6sql6-sqlite
 libxcb1-dev
 libxcb-ewmh-dev

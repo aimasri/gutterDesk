@@ -66,11 +66,13 @@ for app in gutterdesk gutterdeck guttertab; do
 done
 which gtk-update-icon-cache >/dev/null 2>&1 && sudo gtk-update-icon-cache -f -q /usr/share/icons/hicolor 2>/dev/null || true
 
-# 4. Copy desktop entries to /usr/share/applications/
+# 4. Copy desktop entries to /usr/share/applications/ (single canonical location;
+#    a per-user copy in ~/.local/share/applications would shadow and drift from it)
 echo "Deploying system desktop entries..."
 sudo mkdir -p /usr/share/applications
-sudo cp "$SCRIPT_DIR/dotfiles/gutterdeck/.local/share/applications/gutterdeck.desktop" /usr/share/applications/ 2>/dev/null || true
-sudo cp "$SCRIPT_DIR/dotfiles/guttertab/.local/share/applications/guttertab.desktop" /usr/share/applications/ 2>/dev/null || true
+for entry in "$SCRIPT_DIR/assets/applications/"*.desktop; do
+    [ -f "$entry" ] && sudo install -m 644 "$entry" /usr/share/applications/
+done
 which update-desktop-database >/dev/null 2>&1 && sudo update-desktop-database /usr/share/applications 2>/dev/null || true
 
 echo "✓ Themes, wallpapers, and brand icons deployed successfully."

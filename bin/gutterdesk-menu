@@ -181,16 +181,13 @@ def build_menu(paths, user_info, enabled_modules):
 
     target_path = paths["target_menu"]
 
-    # If target is currently a symlink, unlink so we write a real local file
+    # If target is currently a symlink, unlink so we write a real local file.
+    # No .bak is kept: menu.xml is a pure build artifact of the template + menu.d.
     if os.path.islink(target_path):
         os.unlink(target_path)
-    elif os.path.isfile(target_path):
-        bak_file = f"{target_path}.bak"
-        try:
-            shutil.copy2(target_path, bak_file)
-            os.chown(bak_file, user_info["uid"], user_info["gid"])
-        except OSError:
-            pass
+    legacy_bak = f"{target_path}.bak"
+    if os.path.isfile(legacy_bak):
+        os.remove(legacy_bak)
 
     tmp_target = f"{target_path}.tmp"
     with open(tmp_target, "w", encoding="utf-8") as f:

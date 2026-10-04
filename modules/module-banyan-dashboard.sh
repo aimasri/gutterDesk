@@ -73,20 +73,20 @@ echo "=== Compiling Banyan Desktop UI & Tray Daemon ==="
 run_as_target mkdir -p "$TARGET_HOME/projects/Banyan/desktop/build"
 run_as_target bash -c "cd '$TARGET_HOME/projects/Banyan/desktop/build' && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j\$(nproc)"
 
-run_as_target mkdir -p "$TARGET_HOME/.local/bin"
 BUILD_DIR="$TARGET_HOME/projects/Banyan/desktop/build"
 
+# Clean up legacy user-local binaries to prevent shadowing /usr/local/bin
+run_as_target rm -f "$TARGET_HOME/.local/bin/banyan_daemon" "$TARGET_HOME/.local/bin/banyan_dashboard"
+
 if [ -f "$BUILD_DIR/banyan_daemon" ]; then
-    run_as_target install -m 755 "$BUILD_DIR/banyan_daemon" "$TARGET_HOME/.local/bin/banyan_daemon"
-    sudo install -m 755 "$BUILD_DIR/banyan_daemon" /usr/local/bin/banyan_daemon 2>/dev/null || true
+    sudo install -m 755 "$BUILD_DIR/banyan_daemon" /usr/local/bin/banyan_daemon
 fi
 
 if [ -f "$BUILD_DIR/banyan_dashboard" ]; then
-    run_as_target install -m 755 "$BUILD_DIR/banyan_dashboard" "$TARGET_HOME/.local/bin/banyan_dashboard"
-    sudo install -m 755 "$BUILD_DIR/banyan_dashboard" /usr/local/bin/banyan_dashboard 2>/dev/null || true
+    sudo install -m 755 "$BUILD_DIR/banyan_dashboard" /usr/local/bin/banyan_dashboard
 fi
 
-echo "Banyan Dashboard compiled and installed to $TARGET_HOME/.local/bin/banyan_daemon"
+echo "Banyan Dashboard compiled and installed to /usr/local/bin/banyan_daemon"
 
 echo "=== Installing Banyan Desktop Systemd Service ==="
 SYSTEMD_USER_DIR="$TARGET_HOME/.config/systemd/user"
@@ -99,7 +99,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/banyan_daemon
+ExecStart=/usr/local/bin/banyan_daemon
 WorkingDirectory=%h
 Restart=on-failure
 RestartSec=3
@@ -111,30 +111,33 @@ WantedBy=default.target
 EOF
 
 echo "=== Installing Desktop Integration & Application Icons ==="
-run_as_target mkdir -p "$TARGET_HOME/.local/share/applications" "$TARGET_HOME/.local/share/icons/hicolor/256x256/apps"
+# Clean up legacy per-user desktop launcher and icons to prevent shadowing /usr/share
+run_as_target rm -f "$TARGET_HOME/.local/share/applications/banyan.desktop"
+run_as_target rm -f "$TARGET_HOME/.local/share/icons/hicolor/256x256/apps/banyan.png"
 
 ICON_SRC="$TARGET_HOME/projects/Banyan/assets/icon.png"
 if [ -f "$ICON_SRC" ]; then
-    run_as_target cp "$ICON_SRC" "$TARGET_HOME/.local/share/icons/hicolor/256x256/apps/banyan.png"
+    sudo mkdir -p /usr/share/pixmaps /usr/share/icons/hicolor/256x256/apps
     sudo cp "$ICON_SRC" /usr/share/pixmaps/banyan.png 2>/dev/null || true
     sudo cp "$ICON_SRC" /usr/share/icons/hicolor/256x256/apps/banyan.png 2>/dev/null || true
     which gtk-update-icon-cache >/dev/null 2>&1 && sudo gtk-update-icon-cache -f -q /usr/share/icons/hicolor 2>/dev/null || true
 fi
 
-cat << 'EOF' | run_as_target tee "$TARGET_HOME/.local/share/applications/banyan.desktop" >/dev/null
+sudo mkdir -p /usr/share/applications
+cat << 'EOF' | sudo tee /usr/share/applications/banyan.desktop >/dev/null
 [Desktop Entry]
 Name=Banyan
 GenericName=Algorithmic Trading Dashboard
 Comment=Real-time algorithmic trading command center & system tray monitor
-Exec=banyan_daemon --show
+Exec=/usr/local/bin/banyan_daemon --show
 Icon=banyan
 Terminal=false
 Type=Application
 Categories=Office;Finance;Network;
 StartupWMClass=banyan_daemon
 EOF
+sudo chmod 644 /usr/share/applications/banyan.desktop
 
-sudo cp "$TARGET_HOME/.local/share/applications/banyan.desktop" /usr/share/applications/banyan.desktop 2>/dev/null || true
 which update-desktop-database >/dev/null 2>&1 && sudo update-desktop-database /usr/share/applications 2>/dev/null || true
 
 echo "Reloading systemd user daemon..."

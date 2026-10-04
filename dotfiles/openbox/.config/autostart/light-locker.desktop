@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Light Locker
+Comment=gutterDesk override: light-locker's XDG autostart is disabled because lock-on-lid caused session stalls. Locking remains available via the menu/keybinding (light-locker-command -l || dm-tool lock).
+Exec=light-locker
+Hidden=true
