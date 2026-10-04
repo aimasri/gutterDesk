@@ -34,8 +34,13 @@ MODULE_DESCRIPTIONS = {
 
 
 def get_target_user_info():
-    target_user = os.environ.get("SUDO_USER") or os.environ.get("USER") or os.getlogin() if hasattr(os, "getlogin") else None
-    if not target_user:
+    # SUDO_USER is only meaningful when we are actually root. When invoked via
+    # `sudo -u <user>` (bootstrap's run_as_target), SUDO_USER is the *invoking*
+    # user (root), so the real UID is the authoritative identity.
+    sudo_user = os.environ.get("SUDO_USER")
+    if os.geteuid() == 0 and sudo_user and sudo_user != "root":
+        target_user = sudo_user
+    else:
         target_user = pwd.getpwuid(os.getuid()).pw_name
 
     try:
