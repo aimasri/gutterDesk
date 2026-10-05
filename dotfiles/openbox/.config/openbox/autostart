@@ -25,7 +25,7 @@ fi
 
 ## Sequential Desktop Group Start:
 ## 1. Auto-detect orientation and apply matching wallpapers (backgrounded)
-([ -x /usr/local/bin/auto-wallpaper.sh ] && /usr/local/bin/auto-wallpaper.sh || (nitrogen --restore &)) &
+([ -x "$HOME/gutterDesk/bin/auto-wallpaper.sh" ] && "$HOME/gutterDesk/bin/auto-wallpaper.sh" || ([ -x /usr/local/bin/auto-wallpaper.sh ] && /usr/local/bin/auto-wallpaper.sh || (nitrogen --restore &))) &
 
 ## 1b. Automatic screen & touch rotation daemon (for 2-in-1 laptops)
 [ -x /usr/local/bin/gutterdesk-rotator ] && (/usr/local/bin/gutterdesk-rotator --daemon &)
