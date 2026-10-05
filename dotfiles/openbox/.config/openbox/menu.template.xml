@@ -70,12 +70,12 @@
 
     <item label="Antigravity IDE">
       <action name="Execute">
-        <execute>antigravity</execute>
+        <execute>sh -c 'PATH="$HOME/.local/bin:$PATH" exec antigravity'</execute>
       </action>
     </item>
     <item label="Antigravity 2.0">
       <action name="Execute">
-        <execute>antigravity2</execute>
+        <execute>sh -c 'PATH="$HOME/.local/bin:$PATH" exec antigravity2'</execute>
       </action>
     </item>
     <item label="gutterDeck">

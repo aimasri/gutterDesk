@@ -50,6 +50,14 @@ if [ -z "$LANDSCAPE" ]; then
     exit 0
 fi
 
+# If user already has a saved wallpaper configuration in nitrogen, preserve it
+if [ "${1:-}" != "--force" ] && [ -f "$TARGET_HOME/.config/nitrogen/bg-saved.cfg" ]; then
+    if command -v nitrogen >/dev/null 2>&1; then
+        nitrogen --restore 2>/dev/null || true
+        exit 0
+    fi
+fi
+
 if command -v nitrogen >/dev/null 2>&1 && command -v xrandr >/dev/null 2>&1; then
     xrandr --listmonitors 2>/dev/null | awk 'NR>1 {
         idx = substr($1, 1, length($1)-1);

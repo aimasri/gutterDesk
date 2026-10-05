@@ -140,7 +140,7 @@ def apply_rotation(target_xrandr_rotation, matrix=None):
         auto_wp = shutil.which(wp_cmd) or f"/usr/local/bin/{wp_cmd}"
         if auto_wp and os.path.isfile(auto_wp) and os.access(auto_wp, os.X_OK):
             try:
-                subprocess.Popen([auto_wp])
+                subprocess.Popen([auto_wp, "--force"])
                 break
             except Exception:
                 pass
