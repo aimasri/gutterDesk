@@ -103,7 +103,7 @@ To eliminate configuration drift, file duplication, and background synchronizati
   <server>:/ /home/<user>/<server> nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=0,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
   ```
 * **Architectural Guarantees:**
-  * **Zero Idle Overhead:** Connects on demand only when accessed. Automatically unmounts after 60 seconds of inactivity (`x-systemd.idle-timeout=0`).
+  * **Zero Boot Overhead & Persistent Warmth:** Connects on demand only when first accessed (`noauto,x-systemd.automount`), with idle auto-unmounting disabled (`x-systemd.idle-timeout=0`) so active sessions remain warm without blocking boot.
   * **Fault Tolerance & Roaming Safety:** If a client laptop disconnects from Wi-Fi or leaves the LAN, the `soft` mount with a 3-second timeout (`timeo=30,retrans=2`) immediately returns `EIO` to user space. It **never freezes** the Openbox desktop session, file manager, or system shutdown process.
   * **Pseudo-Root Scoping (`fsid=0`):** The server exports `~/projects` as the NFSv4 pseudo-root (`fsid=0`). Client mounts mounting `<server>:/` access exclusively project codebases while completely hiding the server's private SSH keys (`~/.ssh`), credentials (`~/.gemini`), and session files (`.Xauthority`).
 

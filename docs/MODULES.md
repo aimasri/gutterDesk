@@ -103,7 +103,7 @@ Each module is responsible for:
     ```fstab
     <server>:/ /home/<user>/<server> nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=0,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
     ```
-  * **Zero Idle Overhead:** Connects on demand when `~/<server>` is accessed; automatically unmounts after 60s of inactivity.
+  * **Zero Boot Overhead & Persistent Warmth:** Connects on demand when `~/<server>` is first accessed (`noauto,x-systemd.automount`), with idle auto-unmounting disabled (`x-systemd.idle-timeout=0`) to avoid repeated reconnect churn during active sessions.
   * **Failure Isolation:** Uses `soft` mount with 3-second timeout (`timeo=30,retrans=2`). If the server goes down or the client roams outside Wi-Fi range, access fails immediately with `EIO` rather than hanging the desktop or file manager.
   * **Dynamic IP Resolution (`/etc/hosts`):** Prompts for or accepts `<server-ip>` dynamically, mapping it directly in `/etc/hosts` to prevent DNS lookup stalls or router DHCP caching.
   * **Development Domain Routing (`*.test`):** Prompts during client setup to route central web development domains (`urbansugar.test`, `fussybaby.test`, `legacy.fussybaby.test`, `magma.test`) to the central server IP.
