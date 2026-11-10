@@ -100,10 +100,10 @@ To eliminate configuration drift, file duplication, and background synchronizati
 ### Storage Tier: Resilient Systemd NFSv4 Automount
 * **Mount Configuration (`/etc/fstab` on clients):**
   ```fstab
-  <server>:/ /home/<user>/<server> nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
+  <server>:/ /home/<user>/<server> nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=0,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
   ```
 * **Architectural Guarantees:**
-  * **Zero Idle Overhead:** Connects on demand only when accessed. Automatically unmounts after 60 seconds of inactivity (`x-systemd.idle-timeout=60`).
+  * **Zero Idle Overhead:** Connects on demand only when accessed. Automatically unmounts after 60 seconds of inactivity (`x-systemd.idle-timeout=0`).
   * **Fault Tolerance & Roaming Safety:** If a client laptop disconnects from Wi-Fi or leaves the LAN, the `soft` mount with a 3-second timeout (`timeo=30,retrans=2`) immediately returns `EIO` to user space. It **never freezes** the Openbox desktop session, file manager, or system shutdown process.
   * **Pseudo-Root Scoping (`fsid=0`):** The server exports `~/projects` as the NFSv4 pseudo-root (`fsid=0`). Client mounts mounting `<server>:/` access exclusively project codebases while completely hiding the server's private SSH keys (`~/.ssh`), credentials (`~/.gemini`), and session files (`.Xauthority`).
 
@@ -115,14 +115,14 @@ To ensure seamless browser-based development without running heavy web/database 
    Active local domains (`urbansugar.test`, `fussybaby.test`, `legacy.fussybaby.test`, `magma.test`) are maintained declaratively.
 2. **Central Server Routing:**
    * **Primary Server (`aim-stream`):** Hosts Apache, PostgreSQL, Redis, and codebases. Development domains resolve locally to `127.0.0.1`.
-   * **Client Workstations (`aim-book`, `aim-home`):** Route development domains to the central development server IP (`192.168.1.10` LAN or `100.67.215.75` Tailscale).
+   * **Client Workstations (`aim-book`, `aim-home`):** Route development domains to the central development server IP (`192.168.1.10` LAN or `100.72.161.39` Tailscale).
 3. **Standby Failover Workstation Model (`aim-home`):**
    * Primary workstations can install the full webstack (`module-webstack.sh`) to serve as a redundant standby server.
    * **Split-Brain Immunity:** To prevent divergent database records and stale session state, domain routing on the standby workstation points to the primary server by default.
    * **Instant Failover:** If the central server is offline, running `gutterdesk-dev-route local` on the standby machine immediately repoints domains to its local Apache/PostgreSQL instance.
 4. **Roaming Mesh Mobility (`aim-book`):**
    * On home/office Wi-Fi: `gutterdesk-dev-route lan` binds domains to `192.168.1.10` for zero-latency wire speed.
-   * Off-site / roaming: `gutterdesk-dev-route tailscale` binds domains to `100.67.215.75`, routing browser and API calls securely over Tailscale.
+   * Off-site / roaming: `gutterdesk-dev-route tailscale` binds domains to `100.72.161.39`, routing browser and API calls securely over Tailscale.
 
 ---
 

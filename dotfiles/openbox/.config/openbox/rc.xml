@@ -274,7 +274,12 @@
     </keybind>
     <keybind key="S-Print">
       <action name="Execute">
-        <command>scrot -s '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</command>
+        <command>scrot -s -i '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</command>
+      </action>
+    </keybind>
+    <keybind key="W-s">
+      <action name="Execute">
+        <command>scrot -s -i '%Y-%m-%d--%s_$wx$h_scrot.png' -e 'mkdir -p ~/images &amp;&amp; mv $f ~/images/ &amp;&amp; viewnior ~/images/$f'</command>
       </action>
     </keybind>
 
@@ -372,7 +377,7 @@
           <enabled>true</enabled>
           <name>Web Browser</name>
         </startupnotify>
-        <command>x-www-browser --profile-directory="Default"</command>
+        <command>x-www-browser</command>
       </action>
     </keybind>
     <keybind key="W-r">

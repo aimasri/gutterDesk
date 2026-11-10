@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+# ==============================================================================
+# Title:           gutterdesk-dpms
+# Purpose:         Event-Driven X11 DPMS Idle Enforcer (Wake-Lock Resistant)
+# Why This Design: Chromium/Chrome web applications docked in gutterDeck stay
+#                  mapped (IsViewable) off-screen, causing Web WakeLocks
+#                  (navigator.wakeLock / VideoWakeLock) to hold XScreenSaverSuspend
+#                  indefinitely in Xorg. When screenSaverSuspended == 1, Xorg
+#                  cancels its internal SetScreenSaverTimer, preventing xset dpms
+#                  from ever powering off monitors. This daemon queries true
+#                  hardware input idle time via XScreenSaverQueryInfo (libXss)
+#                  and forces DPMSModeOff via DPMSForceLevel (libXext) after 600s
+#                  of physical inactivity with zero polling overhead.
+# Privilege:       Target User (X11 session context)
+# Subsystems:      X11 (MIT-SCREEN-SAVER, DPMS), Openbox autostart
+# Idempotency:     Enforces single-instance execution per UID via non-blocking
+#                  fcntl.flock on /tmp/gutterdesk-dpms-<uid>.lock.
+# ==============================================================================
+
+import ctypes
+import fcntl
+import os
+import signal
+import sys
+import time
+
+TIMEOUT_SEC = 600
+DPMS_MODE_ON = 0
+DPMS_MODE_OFF = 3
+
+
+class XScreenSaverInfo(ctypes.Structure):
+    _fields_ = [
+        ("window", ctypes.c_ulong),
+        ("state", ctypes.c_int),
+        ("kind", ctypes.c_int),
+        ("since", ctypes.c_ulong),
+        ("idle", ctypes.c_ulong),
+        ("event_mask", ctypes.c_ulong),
+    ]
+
+
+def daemonize():
+    if os.fork() > 0:
+        os._exit(0)
+    os.setsid()
+    if os.fork() > 0:
+        os._exit(0)
+    devnull = os.open(os.devnull, os.O_RDWR)
+    for fd in (0, 1, 2):
+        try:
+            os.dup2(devnull, fd)
+        except OSError:
+            pass
+    if devnull > 2:
+        os.close(devnull)
+
+
+def acquire_single_instance_lock():
+    lock_path = f"/tmp/gutterdesk-dpms-{os.getuid()}.lock"
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit(0)
+    os.ftruncate(fd, 0)
+    os.write(fd, f"{os.getpid()}\n".encode("ascii"))
+    return fd
+
+
+def main():
+    timeout_sec = TIMEOUT_SEC
+    use_daemon = False
+    for arg in sys.argv[1:]:
+        if arg == "--daemon":
+            use_daemon = True
+        elif arg.isdigit() and int(arg) > 0:
+            timeout_sec = int(arg)
+
+    if use_daemon:
+        daemonize()
+
+    _lock_fd = acquire_single_instance_lock()
+
+    signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+
+    xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
+    xss = ctypes.cdll.LoadLibrary("libXss.so.1")
+    xext = ctypes.cdll.LoadLibrary("libXext.so.6")
+
+    xlib.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    xlib.XOpenDisplay.restype = ctypes.c_void_p
+    xlib.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+    xlib.XDefaultRootWindow.restype = ctypes.c_ulong
+    xlib.XFlush.argtypes = [ctypes.c_void_p]
+    xlib.XFlush.restype = ctypes.c_int
+
+    xss.XScreenSaverAllocInfo.argtypes = []
+    xss.XScreenSaverAllocInfo.restype = ctypes.POINTER(XScreenSaverInfo)
+    xss.XScreenSaverQueryInfo.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ulong,
+        ctypes.POINTER(XScreenSaverInfo),
+    ]
+    xss.XScreenSaverQueryInfo.restype = ctypes.c_int
+
+    xext.DPMSInfo.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_uint16),
+        ctypes.POINTER(ctypes.c_uint8),
+    ]
+    xext.DPMSInfo.restype = ctypes.c_int
+    xext.DPMSForceLevel.argtypes = [ctypes.c_void_p, ctypes.c_uint16]
+    xext.DPMSForceLevel.restype = ctypes.c_int
+
+    dpy = xlib.XOpenDisplay(None)
+    if not dpy:
+        sys.exit(1)
+
+    root = xlib.XDefaultRootWindow(dpy)
+    info = xss.XScreenSaverAllocInfo()
+    if not info:
+        sys.exit(1)
+
+    timeout_ms = timeout_sec * 1000
+    power_level = ctypes.c_uint16(0)
+    dpms_state = ctypes.c_uint8(0)
+
+    while True:
+        if xext.DPMSInfo(dpy, ctypes.byref(power_level), ctypes.byref(dpms_state)) == 0:
+            time.sleep(30)
+            continue
+
+        if dpms_state.value == 0:
+            # DPMS disabled by user; wait passively
+            time.sleep(30)
+            continue
+
+        if power_level.value != DPMS_MODE_ON:
+            # Monitors are already in Standby/Suspend/Off
+            time.sleep(15)
+            continue
+
+        if xss.XScreenSaverQueryInfo(dpy, root, info) == 0:
+            time.sleep(15)
+            continue
+
+        idle_ms = info.contents.idle
+        if idle_ms >= timeout_ms:
+            xext.DPMSForceLevel(dpy, DPMS_MODE_OFF)
+            xlib.XFlush(dpy)
+            time.sleep(15)
+        else:
+            remaining_sec = max(1.0, (timeout_ms - idle_ms) / 1000.0)
+            time.sleep(remaining_sec)
+
+
+if __name__ == "__main__":
+    main()

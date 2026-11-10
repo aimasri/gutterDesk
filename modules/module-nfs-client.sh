@@ -62,7 +62,7 @@ if [ "$DEV_ROUTE_MODE" != "no" ] && [ "$DEV_ROUTE_MODE" != "skip" ]; then
         cat <<EOF > "$TARGET_HOME/.config/gutterdesk/dev-route.conf"
 SERVER_HOST="$SERVER_HOST"
 SERVER_LAN_IP="${SERVER_IP:-192.168.1.10}"
-SERVER_TS_IP="100.67.215.75"
+SERVER_TS_IP="100.72.161.39"
 EOF
         chown "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.config/gutterdesk/dev-route.conf" 2>/dev/null || true
 
@@ -97,7 +97,7 @@ chown "$TARGET_USER:$TARGET_USER" "$MOUNT_POINT"
 
 # 4. Configure /etc/fstab
 echo "--> Configuring /etc/fstab systemd automount..."
-FSTAB_LINE="$SERVER_EXPORT $MOUNT_POINT nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0"
+FSTAB_LINE="$SERVER_EXPORT $MOUNT_POINT nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=0,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0"
 
 [ -f /etc/fstab ] && [ ! -f /etc/fstab.gutterdesk.bak ] && sudo cp /etc/fstab /etc/fstab.gutterdesk.bak
 

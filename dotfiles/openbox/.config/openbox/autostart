@@ -56,8 +56,9 @@ which pcmanfm >/dev/null 2>&1 && (pcmanfm -d &)
 
 ## Native DPMS power management (clean fade-to-black after 10m idle)
 xset s 600 600 &
-xset dpms 600 900 1200 &
+xset dpms 600 600 600 &
 xset s blank &
+([ -x "$HOME/gutterDesk/bin/gutterdesk-dpms" ] && "$HOME/gutterDesk/bin/gutterdesk-dpms" --daemon || ([ -x /usr/local/bin/gutterdesk-dpms ] && /usr/local/bin/gutterdesk-dpms --daemon)) &
 
 ## 10. Clipboard manager
 which parcellite >/dev/null 2>&1 && (sleep 2s && parcellite) &
@@ -77,3 +78,6 @@ done
 ## 12. First-boot modular installer prompt
 [ -x /usr/local/bin/gutterdesk-first-run.sh ] && (/usr/local/bin/gutterdesk-first-run.sh &)
 
+
+## Antigravity Quota Monitor System Tray Daemon
+[ -f ~/.config/systemd/user/antigravity-quota-monitor.service ] && (sleep 3s && systemctl --user start antigravity-quota-monitor.service) &

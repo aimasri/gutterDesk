@@ -124,7 +124,7 @@ gutterDesk operates across a multi-node physical cluster. Every agent must maint
 - NFS is locked exclusively to NFSv4 (TCP port 2049). NFSv2/v3, `rpcbind`, and UDP exports are disabled.
 - Server exports `~/projects` as the NFSv4 pseudo-root (`fsid=0`), strictly preventing exposure of user dotfiles, credentials (`~/.gemini`), or private keys (`~/.ssh`).
 - Client mounts MUST use resilient, on-demand systemd automounts in `/etc/fstab`:
-  `proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev`
+  `proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=0,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev`
 - Hard mounts (`hard`) are strictly forbidden on clients to prevent session lockups during network roaming or server reboots.
 
 ---
@@ -143,3 +143,9 @@ gutterDesk operates across a multi-node physical cluster. Every agent must maint
 4. **Git Operations:**
    - All commits must follow conventional, descriptive commit messages.
    - Verify working tree status with `git status` before and after file operations.
+5. **Tool-First Grounding:**
+   - Never rely on parametric memory for library APIs, CLI flags, schemas, or codebase structure. Before proposing code changes, answering technical questions, or calling unfamiliar APIs, you MUST inspect the target files, local schemas, or official documentation using read/search tools first. If a detail cannot be verified via tools, state explicitly that it is unverified rather than guessing.
+6. **Short-Horizon Verification Gates:**
+   - Do not chain multiple unverified assumptions across long multi-step turns. Break complex debugging and refactoring into atomic steps—verify the state (via file view, test execution, or typecheck) after each logical change before proceeding to the next step, or delegate isolated research tasks to subagents to keep the main context window clean.
+7. **Mandatory Evidence Links:**
+   - Every claim about codebase behavior, bug root causes, or external facts must be backed by an exact file-and-line link (e.g., [file.py](file:///abs/path/file.py#L10-L20)) or a verified source URL. Never cite a symbol, method signature, or line range without having viewed it in the current session.

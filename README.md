@@ -136,7 +136,7 @@ gutterDesk/
 | `Super + x` | Session &amp; Power menu (Log Out, Reboot, Power Off) |
 | `PrintScreen` | Full screen screenshot (`scrot`) |
 | `Alt + PrintScreen` | Active window screenshot (`scrot -u`) |
-| `Shift + PrintScreen` | Interactive select area (`scrot -s`) |
+| `Super + s` / `Shift + PrintScreen` | Interactive select area (`scrot -s -i`) |
 
 ---
 

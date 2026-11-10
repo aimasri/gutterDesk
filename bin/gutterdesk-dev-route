@@ -5,7 +5,7 @@
 # Why This Design: Client workstations and standby backup servers need to dynamically
 #                  switch development domain routing between:
 #                    1) Primary Server via LAN (192.168.1.10) for maximum wire speed
-#                    2) Primary Server via Tailscale (100.67.215.75) for off-site roaming
+#                    2) Primary Server via Tailscale (100.72.161.39) for off-site roaming
 #                    3) Local Standby Environment (127.0.0.1) for offline failover
 # Privilege:       Target User / Sudo (Uses sudo only for updating /etc/hosts)
 # Subsystems:      /etc/hosts, ~/.config/gutterdesk/hosts, glibc resolver
@@ -24,7 +24,7 @@ CONFIG_FILE="$TARGET_HOME/.config/gutterdesk/dev-route.conf"
 # Configurable defaults
 SERVER_HOST="${SERVER_HOST:-aim-stream}"
 SERVER_LAN_IP="${SERVER_LAN_IP:-192.168.1.10}"
-SERVER_TS_IP="${SERVER_TS_IP:-100.67.215.75}"
+SERVER_TS_IP="${SERVER_TS_IP:-100.72.161.39}"
 LOCAL_IP="127.0.0.1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

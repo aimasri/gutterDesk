@@ -101,7 +101,7 @@ Each module is responsible for:
 * **Architecture:**
   * **Systemd Automount (`/etc/fstab`):**
     ```fstab
-    <server>:/ /home/<user>/<server> nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
+    <server>:/ /home/<user>/<server> nfs4 proto=tcp,port=2049,noauto,x-systemd.automount,x-systemd.idle-timeout=0,x-systemd.device-timeout=5,soft,timeo=30,retrans=2,_netdev 0 0
     ```
   * **Zero Idle Overhead:** Connects on demand when `~/<server>` is accessed; automatically unmounts after 60s of inactivity.
   * **Failure Isolation:** Uses `soft` mount with 3-second timeout (`timeo=30,retrans=2`). If the server goes down or the client roams outside Wi-Fi range, access fails immediately with `EIO` rather than hanging the desktop or file manager.
@@ -118,7 +118,7 @@ Each module is responsible for:
 * **Purpose:** Atomically switches `/etc/hosts` development domain routing between network profiles.
 * **Commands:**
   * `gutterdesk-dev-route lan` (or `primary`): Routes domains to the central development server over high-speed physical LAN (`192.168.1.10`).
-  * `gutterdesk-dev-route tailscale` (or `roaming`): Routes domains to the central development server over the encrypted Tailscale mesh (`100.67.215.75`) when traveling or off local Wi-Fi.
+  * `gutterdesk-dev-route tailscale` (or `roaming`): Routes domains to the central development server over the encrypted Tailscale mesh (`100.72.161.39`) when traveling or off local Wi-Fi.
   * `gutterdesk-dev-route local` (or `standby`): Fails over domain routing to `127.0.0.1` for standalone development or when the primary server is offline.
   * `gutterdesk-dev-route status`: Displays current active target IP, reachability status (ping latency & HTTP port 80 check), and mapped domain resolutions.
 
