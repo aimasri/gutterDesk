@@ -164,31 +164,45 @@ download_archive() {
 }
 
 # A. Antigravity IDE
-IDE_URL="https://dl.google.com/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-x64/Antigravity%20IDE.tar.gz"
-IDE_TAR="$CACHE_DIR/Antigravity_IDE.tar.gz"
-download_archive "$IDE_URL" "$IDE_TAR" "Antigravity IDE"
+IDE_VER="2.7.0-4507555968450560"
+IDE_URL="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${IDE_VER}/linux-x64/Antigravity%20IDE.tar.gz"
+IDE_TAR="$CACHE_DIR/Antigravity_IDE_${IDE_VER}.tar.gz"
+IDE_STAMP="$CACHE_DIR/antigravity-ide.ver"
+INSTALLED_IDE_VER="$(cat "$IDE_STAMP" 2>/dev/null || echo "")"
 
-if [ ! -f /usr/share/antigravity/antigravity-ide ]; then
-    echo "Installing Antigravity IDE into /usr/share/antigravity..."
+if [ ! -f /usr/share/antigravity/antigravity-ide ] || [ "$INSTALLED_IDE_VER" != "$IDE_VER" ]; then
+    download_archive "$IDE_URL" "$IDE_TAR" "Antigravity IDE ($IDE_VER)"
+    echo "Installing Antigravity IDE ($IDE_VER) into /usr/share/antigravity..."
     sudo rm -rf /usr/share/antigravity/* 2>/dev/null || true
     sudo tar -xzf "$IDE_TAR" -C /usr/share/antigravity --strip-components=1
     sudo chown root:root /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
     sudo chmod 4755 /usr/share/antigravity/chrome-sandbox 2>/dev/null || true
+    echo "$IDE_VER" | sudo tee "$IDE_STAMP" >/dev/null
+    sudo find "$CACHE_DIR" -maxdepth 1 -name 'Antigravity_IDE*.tar.gz' ! -name "$(basename "$IDE_TAR")" -delete 2>/dev/null || true
+else
+    echo "✓ Antigravity IDE is up to date ($IDE_VER)."
 fi
 sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/bin/antigravity
 sudo ln -sf /usr/share/antigravity/bin/antigravity-ide /usr/local/bin/antigravity
 
 # B. Antigravity 2.0 (Agents Manager)
-HUB_URL="https://storage.googleapis.com/antigravity-public/antigravity-hub/2.17.0-5217732355031040/linux-x64/Antigravity.tar.gz"
-HUB_TAR="$CACHE_DIR/Antigravity_Hub.tar.gz"
-download_archive "$HUB_URL" "$HUB_TAR" "Antigravity Agents Manager"
+HUB_VER="2.32.0-6141816156848128"
+HUB_URL="https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_VER}/linux-x64/Antigravity.tar.gz"
+HUB_TAR="$CACHE_DIR/Antigravity_Hub_${HUB_VER}.tar.gz"
+HUB_STAMP="$CACHE_DIR/antigravity-hub.ver"
+INSTALLED_HUB_VER="$(cat "$HUB_STAMP" 2>/dev/null || echo "")"
 
-if [ ! -f /opt/Antigravity2/antigravity ]; then
-    echo "Installing Antigravity 2.0 Agents Manager into /opt/Antigravity2..."
+if [ ! -f /opt/Antigravity2/antigravity ] || [ "$INSTALLED_HUB_VER" != "$HUB_VER" ]; then
+    download_archive "$HUB_URL" "$HUB_TAR" "Antigravity Agents Manager ($HUB_VER)"
+    echo "Installing Antigravity 2.0 Agents Manager ($HUB_VER) into /opt/Antigravity2..."
     sudo rm -rf /opt/Antigravity2/* 2>/dev/null || true
     sudo tar -xzf "$HUB_TAR" -C /opt/Antigravity2 --strip-components=1
     sudo chown root:root /opt/Antigravity2/chrome-sandbox 2>/dev/null || true
     sudo chmod 4755 /opt/Antigravity2/chrome-sandbox 2>/dev/null || true
+    echo "$HUB_VER" | sudo tee "$HUB_STAMP" >/dev/null
+    sudo find "$CACHE_DIR" -maxdepth 1 -name 'Antigravity_Hub*.tar.gz' ! -name "$(basename "$HUB_TAR")" -delete 2>/dev/null || true
+else
+    echo "✓ Antigravity 2.0 Agents Manager is up to date ($HUB_VER)."
 fi
 sudo ln -sf /opt/Antigravity2/antigravity /usr/local/bin/antigravity2
 
